@@ -37,12 +37,12 @@ const EmptyState = ({ onSuggestionClick }) => {
             <button
               key={i}
               onClick={() => onSuggestionClick(s.text)}
-              className="flex flex-col items-start gap-3.5 p-4 md:p-5 rounded-2xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] dark:border-white/[0.06] dark:hover:border-white/[0.12] transition-colors text-left shadow-sm hover:shadow-md dark:shadow-none group"
+              className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-3.5 p-3 sm:p-4 md:p-5 rounded-[14px] sm:rounded-2xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] dark:border-white/[0.06] dark:hover:border-white/[0.12] transition-colors text-left shadow-sm hover:shadow-md dark:shadow-none group w-full"
             >
-              <div className="w-8 h-8 rounded-full bg-zinc-100 group-hover:bg-zinc-200 dark:bg-white/[0.06] flex items-center justify-center dark:group-hover:bg-white/[0.1] transition-colors">
+              <div className="shrink-0 w-8 h-8 rounded-full bg-zinc-100 group-hover:bg-zinc-200 dark:bg-white/[0.06] flex items-center justify-center dark:group-hover:bg-white/[0.1] transition-colors">
                 <Icon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 transition-colors" />
               </div>
-              <span className="text-[13.5px] md:text-[14.5px] font-medium text-zinc-600 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 transition-colors leading-snug">{s.text}</span>
+              <span className="text-[13px] sm:text-[13.5px] md:text-[14.5px] font-medium text-zinc-600 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 transition-colors leading-snug flex-1">{s.text}</span>
             </button>
           )
         })}
