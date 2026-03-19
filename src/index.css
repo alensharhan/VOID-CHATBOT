@@ -14,18 +14,20 @@
   }
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+@media (hover: hover) and (pointer: fine) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  border-radius: 8px;
-  @apply bg-zinc-300 hover:bg-zinc-400 dark:bg-zinc-600 dark:hover:bg-zinc-500 transition-colors;
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    @apply bg-zinc-300 hover:bg-zinc-400 dark:bg-zinc-600 dark:hover:bg-zinc-500 transition-colors;
+  }
 }
 
 /* Base override for code blocks inherited by markdown */

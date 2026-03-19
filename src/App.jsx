@@ -235,7 +235,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9] font-sans transition-colors duration-300">
+    <div className="h-[100dvh] w-full flex overflow-hidden bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9] font-sans transition-colors duration-300 relative">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -278,7 +278,7 @@ function App() {
         />
 
         <div className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar">
-          <div className="w-full max-w-3xl px-4 pt-8 pb-[180px] flex-1 flex flex-col">
+          <div className={`w-full max-w-3xl px-4 pt-8 flex-1 flex flex-col ${currentMessages.length > 0 ? 'pb-[180px]' : 'pb-8 md:pb-12'}`}>
             <ChatWindow
               messages={currentMessages}
               isTyping={isTyping}
@@ -287,7 +287,7 @@ function App() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-[12px] p-4 md:p-6 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-[#1b1b1b] dark:via-[#1b1b1b]/80 pointer-events-none z-10 transition-colors duration-300">
+        <div className="absolute bottom-0 left-0 right-0 md:right-[12px] p-4 md:p-6 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-[#1b1b1b] dark:via-[#1b1b1b]/80 pointer-events-none z-10 transition-colors duration-300">
           <div className="max-w-3xl mx-auto w-full pointer-events-auto">
             <Composer onSend={handleSendMessage} disabled={isTyping} />
           </div>

@@ -96,16 +96,16 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute top-[100%] left-0 mt-[1.2rem] w-[360px] max-h-[65vh] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl py-2 flex flex-col backdrop-blur-xl dark:bg-[#1a1a1c]/95"
+            className="absolute top-[100%] left-[-16px] md:left-0 mt-[1.2rem] w-[calc(100vw-16px)] sm:w-[360px] max-w-[360px] max-h-[65vh] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl py-2 flex flex-col backdrop-blur-xl dark:bg-[#1a1a1c]/95"
           >
             {groupedModels.map((group, gIdx) => (
-              <div key={group.groupName} className="flex flex-col">
-                {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2" />}
-                <div className="px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+              <div key={group.groupName} className="flex flex-col shrink-0">
+                {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2 shrink-0" />}
+                <div className="px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 shrink-0">
                   {group.groupName}
                 </div>
                 
-                <div className="flex flex-col gap-0.5 px-2">
+                <div className="flex flex-col gap-0.5 px-2 shrink-0">
                   {group.models.map(m => {
                     const MIcon = m.Icon;
                     const isSelected = selectedModel === m.id;
@@ -116,7 +116,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
                           onModelChange(m.id);
                           setIsOpen(false);
                         }}
-                        className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item ${
+                        className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${
                           isSelected 
                             ? 'bg-blue-50/50 dark:bg-blue-500/10' 
                             : 'hover:bg-zinc-50 dark:hover:bg-white/5'

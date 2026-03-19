@@ -1,51 +1,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Terminal, Lightbulb, Link2, Sparkles, Infinity } from 'lucide-react';
+import { Infinity } from 'lucide-react';
 
-const suggestions = [
-  { icon: Terminal, text: "Write a React component with Framer Motion" },
-  { icon: Lightbulb, text: "Explain quantum computing in simple terms" },
-  { icon: Link2, text: "How to integrate WebSockets in Node.js" },
-  { icon: Sparkles, text: "Design a premium dark mode color palette" }
-];
-
-const EmptyState = ({ onSuggestionClick }) => {
+const EmptyState = () => {
   return (
-    <div className="w-full flex flex-col items-center mx-auto max-w-2xl mt-4 md:mt-6 pb-[40px] md:pb-[80px]">
+    <div className="w-full flex-1 flex flex-col items-center justify-center mx-auto max-w-2xl">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center mb-6"
+        className="text-center"
       >
         <div className="w-12 h-12 rounded-[18px] bg-white border border-zinc-200 dark:bg-white/[0.03] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-4 shadow-sm dark:shadow-none">
           <Infinity className="w-6 h-6 text-zinc-400 dark:text-zinc-300" />
         </div>
         <h2 className="text-[24px] md:text-[28px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-2">Ask into the VOID</h2>
         <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium tracking-wide">Calm intelligence, on demand.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full"
-      >
-        {suggestions.map((s, i) => {
-          const Icon = s.icon;
-          return (
-            <button
-              key={i}
-              onClick={() => onSuggestionClick(s.text)}
-              className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-3.5 p-3 sm:p-4 md:p-5 rounded-[14px] sm:rounded-2xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] dark:border-white/[0.06] dark:hover:border-white/[0.12] transition-colors text-left shadow-sm hover:shadow-md dark:shadow-none group w-full"
-            >
-              <div className="shrink-0 w-8 h-8 rounded-full bg-zinc-100 group-hover:bg-zinc-200 dark:bg-white/[0.06] flex items-center justify-center dark:group-hover:bg-white/[0.1] transition-colors">
-                <Icon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 transition-colors" />
-              </div>
-              <span className="text-[13px] sm:text-[13.5px] md:text-[14.5px] font-medium text-zinc-600 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 transition-colors leading-snug flex-1">{s.text}</span>
-            </button>
-          )
-        })}
       </motion.div>
     </div>
   );
