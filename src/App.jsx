@@ -277,8 +277,8 @@ function App() {
           isLoadingModels={isLoadingModels}
         />
 
-        <div className={`flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden ${currentMessages.length > 0 ? 'overflow-y-auto custom-scrollbar' : 'overflow-y-hidden'}`}>
-          <div className="w-full max-w-3xl px-4 pt-8 pb-[140px] flex-1 flex flex-col">
+        <div className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar">
+          <div className="w-full max-w-3xl px-4 pt-8 pb-[180px] flex-1 flex flex-col">
             <ChatWindow
               messages={currentMessages}
               isTyping={isTyping}
