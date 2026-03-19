@@ -4,7 +4,7 @@ import { Infinity } from 'lucide-react';
 
 const EmptyState = () => {
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center mx-auto max-w-2xl">
+    <div className="w-full flex-1 flex flex-col items-center justify-center mx-auto max-w-2xl mb-[15vh]">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

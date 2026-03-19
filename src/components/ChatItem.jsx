@@ -62,9 +62,16 @@ const ChatItem = ({ chat, isActive, onSelect, onRename, onDelete, projects, onMo
         cy = window.innerHeight - assumedHalfHeight - 15;
       }
 
+      // Adjust left position to not overflow right side of screen
+      let cx = rect.right + 12;
+      const menuWidth = 200; // Fixed width used in the class
+      if (cx + menuWidth > window.innerWidth - 12) {
+        cx = window.innerWidth - menuWidth - 12;
+      }
+
       setMenuPos({ 
         top: cy, 
-        left: rect.right + 12 
+        left: cx 
       });
     }
     setIsMenuOpen(!isMenuOpen);
