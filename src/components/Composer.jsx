@@ -19,7 +19,8 @@ const Composer = ({ onSend, disabled }) => {
   }, [text]);
 
   useEffect(() => {
-    if (!disabled && textareaRef.current) {
+    // Only auto-focus on desktop devices to prevent mobile keyboards from forcefully popping up
+    if (!disabled && textareaRef.current && window.matchMedia("(pointer: fine)").matches) {
       textareaRef.current.focus();
     }
   }, [disabled]);
