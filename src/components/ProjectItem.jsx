@@ -77,7 +77,7 @@ const ProjectItem = ({ project, hasChats, onRename, onDelete, onToggleExpand, ch
             ref={buttonRef}
             onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
             className={`p-1 -mr-1 rounded-md hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors shrink-0 
-              ${isMenuOpen ? 'opacity-100 text-zinc-800 bg-zinc-200 dark:text-zinc-200 dark:bg-white/[0.08]' : 'opacity-0 text-zinc-400 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}
+              ${isMenuOpen ? 'opacity-100 text-zinc-800 bg-zinc-200 dark:text-zinc-200 dark:bg-white/[0.08]' : 'opacity-100 text-zinc-400 md:opacity-0 md:group-hover:opacity-100'}`}
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
