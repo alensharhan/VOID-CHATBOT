@@ -26,6 +26,9 @@ export async function sendMessage(message, chatHistory = [], modelId) {
       if (data.isModelError) {
         throw new Error("MODEL_UNAVAILABLE");
       }
+      if (data.error) {
+        throw new Error(`[Server] ${data.error}`);
+      }
       throw new Error(`API error: ${response.status}`);
     }
     
@@ -46,6 +49,11 @@ export async function sendMessage(message, chatHistory = [], modelId) {
     
     // Smooth fallback if the network totally fails or API isn't set up yet
     await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
+    
+    if (error.message && error.message.includes("[Server]")) {
+      return { reply: `Connection error details:\n\`\`\`text\n${error.message}\n\`\`\`\n\nPlease check your API Key configuration or trigger a fresh Netlify Deploy.` };
+    }
+    
     return { reply: "I am currently disconnected from my neural core. Please verify the API integration or check your connection." };
   }
 }
