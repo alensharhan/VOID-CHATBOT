@@ -1,15 +1,46 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import EmptyState from './EmptyState';
-import MessageList from './MessageList';
+import MessageBubble from './MessageBubble';
 
 const ChatWindow = ({ messages, isTyping, onSuggestionClick }) => {
+  const endRef = useRef(null);
+
+  // Auto-scroll when new messages arrive.
+  useEffect(() => {
+    if (endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isTyping]);
+
+  if (messages.length === 0) {
+    return <EmptyState onSuggestionClick={onSuggestionClick} />;
+  }
+
   return (
-    <div className="w-full h-full flex flex-col relative overflow-hidden">
-      {messages.length === 0 ? (
-        <EmptyState onSuggestionClick={onSuggestionClick} />
-      ) : (
-        <MessageList messages={messages} isTyping={isTyping} />
+    <div className="flex flex-col gap-6 w-full pb-4">
+      {messages.map((m) => (
+        <MessageBubble key={m.id} message={m} />
+      ))}
+
+      {isTyping && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex gap-4 w-full"
+        >
+          <div className="w-8 h-8 rounded-full bg-white border border-zinc-200 shadow-sm dark:bg-zinc-800 dark:border-transparent flex items-center justify-center shrink-0 mt-1">
+            <div className="w-3 h-3 bg-zinc-300 dark:bg-zinc-400 rounded-full" />
+          </div>
+          <div className="py-4 px-2 flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-[bounce_1s_infinite_ease-in-out_both]" style={{ animationDelay: '-0.32s' }} />
+            <div className="w-1.5 h-1.5 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-[bounce_1s_infinite_ease-in-out_both]" style={{ animationDelay: '-0.16s' }} />
+            <div className="w-1.5 h-1.5 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-[bounce_1s_infinite_ease-in-out_both]" />
+          </div>
+        </motion.div>
       )}
+
+      <div ref={endRef} className="h-4" />
     </div>
   );
 };

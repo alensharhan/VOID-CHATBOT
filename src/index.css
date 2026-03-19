@@ -3,35 +3,88 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
-    @apply m-0 p-0 overflow-hidden bg-background text-brand selection:bg-surfaceHighlight selection:text-white;
+    @apply bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9];
   }
 }
 
-@layer utilities {
-  .glass {
-    @apply bg-surface/60 backdrop-blur-2xl border border-white/5 shadow-2xl;
-  }
-  .glass-panel {
-    @apply bg-surface/30 backdrop-blur-xl border border-white/5;
-  }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-white/20;
-  }
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  @apply bg-zinc-300 hover:bg-zinc-400 dark:bg-zinc-600 dark:hover:bg-zinc-500 transition-colors;
+}
+
+/* Base override for code blocks inherited by markdown */
+pre {
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+/* Global Markdown Styling tailored for immense readability in AI outputs */
+.prose p {
+  @apply leading-relaxed mb-5 text-[15px] md:text-base text-zinc-800 dark:text-zinc-200;
+}
+
+.prose ul,
+.prose ol {
+  @apply mb-5 pl-5 marker:text-zinc-500 space-y-2;
+}
+
+.prose li {
+  @apply leading-relaxed text-[15px] md:text-base text-zinc-800 dark:text-zinc-200;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  @apply font-semibold mt-8 mb-4 tracking-tight text-zinc-900 dark:text-zinc-100;
+}
+
+.prose h1 {
+  @apply text-2xl md:text-3xl;
+}
+
+.prose h2 {
+  @apply text-xl md:text-2xl;
+}
+
+.prose h3 {
+  @apply text-lg md:text-xl;
+}
+
+.prose strong {
+  @apply font-semibold text-zinc-900 dark:text-zinc-100;
+}
+
+.prose a {
+  @apply text-blue-600 dark:text-blue-400 underline underline-offset-4 decoration-blue-600/30 hover:decoration-blue-600 dark:decoration-blue-400/30 dark:hover:decoration-blue-400 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-sm;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-zinc-200 dark:border-zinc-700 pl-4 py-1 italic text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 rounded-r-lg mb-5;
+}
+
+/* Inline code formatting decoupled from primary pre wrappers */
+.prose p code,
+.prose li code {
+  @apply bg-zinc-100 dark:bg-white/10 text-zinc-800 dark:text-zinc-300 px-1.5 py-0.5 rounded-md text-[0.875em] font-medium border border-zinc-200 dark:border-white/5;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Terminal, Lightbulb, Link2, Sparkles } from 'lucide-react';
+import { Terminal, Lightbulb, Link2, Sparkles, Infinity } from 'lucide-react';
 
 const suggestions = [
   { icon: Terminal, text: "Write a React component with Framer Motion" },
@@ -11,37 +11,39 @@ const suggestions = [
 
 const EmptyState = ({ onSuggestionClick }) => {
   return (
-    <div className="w-full flex flex-col items-center justify-center flex-1 p-6 z-10 h-full min-h-[50vh]">
+    <div className="w-full h-full flex flex-col items-center justify-center m-auto max-w-2xl py-12">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-        className="text-center mb-12"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="text-center mb-10"
       >
-        <div className="w-16 h-16 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(255,255,255,0.05)]">
-          <div className="w-5 h-5 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+        <div className="w-16 h-16 rounded-[24px] bg-white border border-zinc-200 dark:bg-white/[0.03] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-6 shadow-sm dark:shadow-none">
+          <Infinity className="w-8 h-8 text-zinc-400 dark:text-zinc-300" />
         </div>
-        <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-3">Ask into the VOID</h2>
-        <p className="text-white/40 text-sm md:text-base font-light">Calm intelligence, on demand.</p>
+        <h2 className="text-[28px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-3">Ask into the VOID</h2>
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium tracking-wide">Calm intelligence, on demand.</p>
       </motion.div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mx-auto"
+        transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full"
       >
         {suggestions.map((s, i) => {
           const Icon = s.icon;
           return (
-             <button 
-               key={i}
-               onClick={() => onSuggestionClick(s.text)}
-               className="flex flex-col items-start gap-3 p-4 rounded-2xl bg-surface/40 hover:bg-surface/80 border border-white/5 hover:border-white/10 transition-all text-left group shadow-lg"
-             >
-               <Icon className="w-4 h-4 text-white/50 group-hover:text-white transition-colors" />
-               <span className="text-sm text-white/70 group-hover:text-white transition-colors">{s.text}</span>
-             </button>
+            <button
+              key={i}
+              onClick={() => onSuggestionClick(s.text)}
+              className="flex flex-col items-start gap-3.5 p-4 md:p-5 rounded-2xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] dark:border-white/[0.06] dark:hover:border-white/[0.12] transition-colors text-left shadow-sm hover:shadow-md dark:shadow-none group"
+            >
+              <div className="w-8 h-8 rounded-full bg-zinc-100 group-hover:bg-zinc-200 dark:bg-white/[0.06] flex items-center justify-center dark:group-hover:bg-white/[0.1] transition-colors">
+                <Icon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200 transition-colors" />
+              </div>
+              <span className="text-[13.5px] md:text-[14.5px] font-medium text-zinc-600 group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-zinc-100 transition-colors leading-snug">{s.text}</span>
+            </button>
           )
         })}
       </motion.div>

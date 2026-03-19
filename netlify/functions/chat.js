@@ -14,7 +14,28 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { message, messages = [] } = JSON.parse(event.body);
+    let { message, messages = [], model = "llama-3.3-70b-versatile" } = JSON.parse(event.body);
+
+    // Dynamic Server-Side Model Validation
+    const showAdvancedModels = false;
+    const blocklist = [
+      "guard", "safeguard", "moderation", "compound", 
+      "whisper", "transcription", "speech", "tts", "stt", "audio", 
+      "embed", "embedding", "rerank", "vision", "ocr", "tool", "system"
+    ];
+    const allowlist = [
+      "llama", "qwen", "gpt-oss", "allam", "kimi", 
+      "gemma", "canopylabs", "orpheus", "mixtral", "deepseek"
+    ];
+
+    const modelIdLower = model.toLowerCase();
+    const isBlocked = blocklist.some(term => modelIdLower.includes(term));
+    const isAllowedFamily = allowlist.some(term => modelIdLower.includes(term));
+    
+    if ((isBlocked && !showAdvancedModels) || !isAllowedFamily) {
+      console.warn(`[SECURITY] Blocked isolated API request attempting to query non-compliant routing core: ${model}`);
+      model = "llama-3.3-70b-versatile"; // Safe Graceful Fallback
+    }
 
     if (!message) {
       return {
@@ -30,20 +51,27 @@ exports.handler = async (event, context) => {
       content: m.content
     }));
 
-    const systemPrompt = {
+    const systemMessage = {
       role: "system",
-      content: "You are VOID, a calm, premium, concise, and highly helpful AI assistant. You speak with a refined, elegant, and clear tone. You never use emojis. You prioritize insight, performance, and deep focus without unnecessary pleasantries."
+      content: `You are VOID, a premium AI assistant.
+
+Strict rules:
+- Always respond ONLY in English.
+- Never switch to Arabic or any other language unless the user explicitly asks.
+- If the user input is short or unclear, still respond in English.
+- Keep responses clean and readable.
+- Use proper formatting and code blocks when needed.`
     };
 
-    const completionMessages = [
-      systemPrompt,
+    const finalMessages = [
+      systemMessage,
       ...formattedHistory,
       { role: "user", content: message }
     ];
 
     const chatCompletion = await groq.chat.completions.create({
-      messages: completionMessages,
-      model: "llama-3.3-70b-versatile",
+      messages: finalMessages,
+      model: model, // Now accepting direct dynamic strings vs forced validation array
       temperature: 0.7,
       max_tokens: 1024,
     });
@@ -58,12 +86,21 @@ exports.handler = async (event, context) => {
   } catch (error) {
     console.error("Groq API Error:", error);
     
-    // Provide a graceful premium fallback on error
+    // Explicitly identify model-related failures to relay actionable error messages
+    const errorStr = String(error.message || "").toLowerCase();
+    const isModelError = errorStr.includes('model') || errorStr.includes('does not exist');
+    
+    const replyMsg = isModelError 
+      ? "Model temporarily unavailable. Switching to default." 
+      : "I am experiencing network friction. Please maintain your focus and try again shortly.";
+
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        reply: "I am experiencing network friction. Please maintain your focus and try again shortly." 
+        error: error.message,
+        reply: replyMsg,
+        isModelError
       })
     };
   }
