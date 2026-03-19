@@ -96,54 +96,56 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed top-[64px] left-3 right-3 sm:absolute sm:top-[100%] sm:left-0 sm:right-auto sm:mt-[1.2rem] w-[calc(100vw-24px)] sm:w-[360px] max-h-[65vh] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl py-2 flex flex-col backdrop-blur-xl dark:bg-[#1a1a1c]/95"
+            className="fixed top-[64px] left-3 right-3 sm:absolute sm:top-[100%] sm:left-0 sm:right-auto sm:mt-[1.2rem] sm:w-[360px] max-h-[55vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 pr-1 pl-0"
           >
-            {groupedModels.map((group, gIdx) => (
-              <div key={group.groupName} className="flex flex-col shrink-0">
-                {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2 shrink-0" />}
-                <div className="px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 shrink-0">
-                  {group.groupName}
-                </div>
-                
-                <div className="flex flex-col gap-0.5 px-2 shrink-0">
-                  {group.models.map(m => {
-                    const MIcon = m.Icon;
-                    const isSelected = selectedModel === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          onModelChange(m.id);
-                          setIsOpen(false);
-                        }}
-                        className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${
-                          isSelected 
-                            ? 'bg-blue-50/50 dark:bg-blue-500/10' 
-                            : 'hover:bg-zinc-50 dark:hover:bg-white/5'
-                        }`}
-                      >
-                        <MIcon className={`w-[18px] h-[18px] mt-0.5 shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400 group-hover/item:text-zinc-900 dark:group-hover/item:text-zinc-200'}`} />
-                        <div className="flex flex-col flex-1 min-w-0 pr-2 pb-0.5">
-                          <div className="flex items-center gap-2 mb-0.5 shrink-0">
-                            <span className={`text-[14px] font-semibold tracking-tight truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                              {m.title}
-                            </span>
-                            {m.badge && (
-                              <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${isSelected ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
-                                {m.badge}
+            <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col pl-1.5 pr-1 pb-2">
+              {groupedModels.map((group, gIdx) => (
+                <div key={group.groupName} className="flex flex-col shrink-0">
+                  {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2 shrink-0" />}
+                  <div className="px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 shrink-0">
+                    {group.groupName}
+                  </div>
+                  
+                  <div className="flex flex-col gap-0.5 px-2 shrink-0">
+                    {group.models.map(m => {
+                      const MIcon = m.Icon;
+                      const isSelected = selectedModel === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            onModelChange(m.id);
+                            setIsOpen(false);
+                          }}
+                          className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${
+                            isSelected 
+                              ? 'bg-blue-50/50 dark:bg-blue-500/10' 
+                              : 'hover:bg-zinc-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          <MIcon className={`w-[18px] h-[18px] mt-0.5 shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400 group-hover/item:text-zinc-900 dark:group-hover/item:text-zinc-200'}`} />
+                          <div className="flex flex-col flex-1 min-w-0 pr-2 pb-0.5">
+                            <div className="flex items-center gap-2 mb-0.5 shrink-0">
+                              <span className={`text-[14px] font-semibold tracking-tight truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                {m.title}
                               </span>
-                            )}
+                              {m.badge && (
+                                <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${isSelected ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[12px] font-medium whitespace-normal line-clamp-2 leading-snug break-words ${isSelected ? 'text-blue-600/80 dark:text-blue-400/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                              {m.name} • {m.description}
+                            </span>
                           </div>
-                          <span className={`text-[12px] font-medium whitespace-normal line-clamp-2 leading-snug break-words ${isSelected ? 'text-blue-600/80 dark:text-blue-400/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                            {m.name} • {m.description}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
