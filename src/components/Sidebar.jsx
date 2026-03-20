@@ -1,16 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeft, Plus, Settings, X, Zap, Trash2, FolderClosed, SquarePen, Search, FolderPlus, Infinity } from 'lucide-react';
+import { isToday, isYesterday, differenceInDays } from 'date-fns';
 import ChatItem from './ChatItem';
 import ProjectItem from './ProjectItem';
+import { useAppStore } from '../store/useAppStore';
+import { useHotkeys } from 'react-hotkeys-hook';
 
-const Sidebar = ({
-  isOpen, onClose, onNewChat,
-  chats = [], activeChatId, onSelectChat, onRenameChat, onDeleteChat, onClearAllChats,
-  projects = [], onCreateProject, onRenameProject, onDeleteProject, onToggleProjectExpand, onMoveChatToProject
-}) => {
+const Sidebar = () => {
+  const {
+    isSidebarOpen: isOpen, setIsSidebarOpen, startNewChat: onNewChat,
+    chats, activeChatId, selectChat: onSelectChat, renameChat: onRenameChat, deleteChat: onDeleteChat, clearAllChats: onClearAllChats,
+    projects, createProject: onCreateProject, renameProject: onRenameProject, deleteProject: onDeleteProject, toggleProjectExpand: onToggleProjectExpand, moveChatToProject: onMoveChatToProject
+  } = useAppStore();
+  
+  const onClose = () => setIsSidebarOpen(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
+
+  // Global keyboard shortcut: Ctrl/Cmd+Shift+N = New Chat
+  useHotkeys('mod+shift+n', (e) => { e.preventDefault(); onNewChat(); }, { enableOnFormTags: false });
 
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -78,6 +87,29 @@ const Sidebar = ({
   const uncategorizedChats = chats.filter(c => !c.projectId);
   const searchLower = searchQuery.toLowerCase();
   const searchResults = chats.filter(c => (c.title || "New Conversation").toLowerCase().includes(searchLower));
+
+  const groupChatsByDate = (chatsToGroup) => {
+    const groups = { today: [], yesterday: [], previous7Days: [], previous30Days: [], older: [] };
+    const now = new Date();
+    
+    chatsToGroup.forEach(chat => {
+      const timestamp = parseInt(chat.id, 10);
+      if (isNaN(timestamp)) {
+        groups.older.push(chat);
+        return;
+      }
+      
+      const date = new Date(timestamp);
+      const diff = differenceInDays(now, date);
+      
+      if (isToday(date)) groups.today.push(chat);
+      else if (isYesterday(date)) groups.yesterday.push(chat);
+      else if (diff <= 7) groups.previous7Days.push(chat);
+      else if (diff <= 30) groups.previous30Days.push(chat);
+      else groups.older.push(chat);
+    });
+    return groups;
+  };
 
   return (
     <>
@@ -242,18 +274,40 @@ const Sidebar = ({
                 {(projects.length > 0) && uncategorizedChats.length > 0 && <div className="h-px w-[calc(100%-16px)] ml-2 bg-zinc-200 dark:bg-white/[0.06] my-3" />}
 
                 <ul className="flex flex-col gap-0.5 relative z-10 pb-4">
-                  {uncategorizedChats.map(chat => (
-                    <ChatItem
-                      key={chat.id}
-                      chat={chat}
-                      isActive={chat.id === activeChatId}
-                      onSelect={onSelectChat}
-                      onRename={onRenameChat}
-                      onDelete={onDeleteChat}
-                      projects={projects}
-                      onMoveToProject={onMoveChatToProject}
-                    />
-                  ))}
+                  {(() => {
+                    const grouped = groupChatsByDate(uncategorizedChats);
+                    
+                    const renderGroup = (label, groupChats) => {
+                      if (groupChats.length === 0) return null;
+                      return (
+                        <div className="mt-5 first:mt-1 mb-1">
+                          <div className="px-3 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-widest mb-1.5">{label}</div>
+                          {groupChats.map(chat => (
+                            <ChatItem
+                              key={chat.id}
+                              chat={chat}
+                              isActive={chat.id === activeChatId}
+                              onSelect={onSelectChat}
+                              onRename={onRenameChat}
+                              onDelete={onDeleteChat}
+                              projects={projects}
+                              onMoveToProject={onMoveChatToProject}
+                            />
+                          ))}
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {renderGroup("TODAY", grouped.today)}
+                        {renderGroup("YESTERDAY", grouped.yesterday)}
+                        {renderGroup("PREVIOUS 7 DAYS", grouped.previous7Days)}
+                        {renderGroup("PREVIOUS 30 DAYS", grouped.previous30Days)}
+                        {renderGroup("OLDER", grouped.older)}
+                      </>
+                    );
+                  })()}
                 </ul>
               </>
             )}

@@ -90,3 +90,20 @@ code {
 .prose li code {
   @apply bg-zinc-100 dark:bg-white/10 text-zinc-800 dark:text-zinc-300 px-1.5 py-0.5 rounded-md text-[0.875em] font-medium border border-zinc-200 dark:border-white/5;
 }
+
+.prose code::before,
+.prose code::after {
+  content: none !important;
+}
+
+::selection {
+  background-color: #b4d5ff;
+  color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.4);
+    color: white;
+  }
+}

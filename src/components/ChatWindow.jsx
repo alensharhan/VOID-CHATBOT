@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import EmptyState from './EmptyState';
 import MessageBubble from './MessageBubble';
 
-const ChatWindow = ({ messages, isTyping, onSuggestionClick }) => {
+const ChatWindow = ({ messages, isTyping }) => {
   const endRef = useRef(null);
 
   // Auto-scroll when new messages arrive.
@@ -14,7 +14,7 @@ const ChatWindow = ({ messages, isTyping, onSuggestionClick }) => {
   }, [messages, isTyping]);
 
   if (messages.length === 0) {
-    return <EmptyState onSuggestionClick={onSuggestionClick} />;
+    return <EmptyState />;
   }
 
   return (

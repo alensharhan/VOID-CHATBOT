@@ -1,11 +1,17 @@
-export async function sendMessage(message, chatHistory = [], modelId) {
+export async function sendMessage(message, chatHistory = [], modelId, hiddenContext = null) {
   const apiUrl = '/api/chat';
 
-  // Format history safely: only send role and content to Groq
-  const cleanHistory = chatHistory.map(m => ({
-    role: m.role,
-    content: m.content
-  }));
+  // Format history safely: only send role and content to Groq, merging hidden context natively
+  const cleanHistory = chatHistory.map(m => {
+    let finalContent = m.content;
+    if (m.hiddenContext) {
+      finalContent = `${m.hiddenContext}\n\n---\nUser Message:\n${m.content}`;
+    }
+    return {
+      role: m.role,
+      content: finalContent
+    };
+  });
 
   try {
     const response = await fetch(apiUrl, {
@@ -15,6 +21,7 @@ export async function sendMessage(message, chatHistory = [], modelId) {
       },
       body: JSON.stringify({ 
         message, 
+        hiddenContext,
         messages: cleanHistory,
         model: modelId
       }),
