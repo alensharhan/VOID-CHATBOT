@@ -17,6 +17,7 @@
     "groq-sdk": "^1.1.1",
     "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.2",
+    "kokoro-js": "^1.2.1",
     "lucide-react": "^0.441.0",
     "mermaid": "^11.13.0",
     "nanoid": "^5.1.7",
@@ -39,6 +40,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.1",
     "xlsx": "^0.18.5",
+    "youtube-transcript": "^1.3.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

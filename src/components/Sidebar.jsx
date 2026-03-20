@@ -281,7 +281,7 @@ const Sidebar = () => {
                       if (groupChats.length === 0) return null;
                       return (
                         <div className="mt-5 first:mt-1 mb-1">
-                          <div className="px-3 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-widest mb-1.5">{label}</div>
+                          {label && <div className="px-3 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-widest mb-1.5">{label}</div>}
                           {groupChats.map(chat => (
                             <ChatItem
                               key={chat.id}
@@ -304,7 +304,7 @@ const Sidebar = () => {
                         {renderGroup("YESTERDAY", grouped.yesterday)}
                         {renderGroup("PREVIOUS 7 DAYS", grouped.previous7Days)}
                         {renderGroup("PREVIOUS 30 DAYS", grouped.previous30Days)}
-                        {renderGroup("OLDER", grouped.older)}
+                        {renderGroup("", grouped.older)}
                       </>
                     );
                   })()}

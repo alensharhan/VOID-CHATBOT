@@ -102,24 +102,70 @@ export const useAppStore = create(
       })),
 
       initLocalModel: async (modelId) => {
-        set({ localAiStatus: 'loading', localAiProgress: 'Initializing hardware check...' });
+        set({ localAiStatus: 'loading', localAiProgress: { text: 'Initializing hardware check...', percent: 0 } });
         try {
           const progressCallback = (report) => {
-            set({ localAiProgress: report.text });
+            let percent = 0;
+            let cleanText = "Loading Engine...";
+
+            if (report.status !== undefined && report.name !== undefined) {
+              // Transformers.js
+              percent = report.progress ? Math.round(report.progress) : 0;
+              if (report.status === 'downloading') {
+                 cleanText = `Downloading Weights: ${report.name.split('/').pop() || 'Component'}...`;
+              } else if (report.status === 'ready') {
+                 cleanText = 'Component Ready.';
+              } else {
+                 cleanText = `Processing: ${report.status}`;
+              }
+            } else {
+              // WebLLM
+              const rawText = report.text || '';
+              percent = report.progress ? Math.round(report.progress * 100) : 0;
+              
+              if (rawText.includes('Fetching param cache')) {
+                const mbMatch = rawText.match(/([0-9]+)MB fetched/);
+                if (mbMatch) {
+                   const currentMB = parseInt(mbMatch[1]);
+                   const totalMB = report.progress > 0 ? Math.round(currentMB / report.progress) : '?';
+                   cleanText = `Downloading Model Weights... ${currentMB}MB / ${totalMB}MB`;
+                } else {
+                   cleanText = 'Downloading Model Weights...';
+                }
+              } else if (rawText.includes('Finish fetching')) {
+                cleanText = 'Download complete. Compiling WebGPU shaders...';
+              } else if (rawText.includes('Loading model')) {
+                cleanText = 'Loading WebAssembly into GPU (takes 15-45s normally)...';
+              } else {
+                cleanText = rawText;
+              }
+            }
+
+            set({ localAiProgress: { text: cleanText, percent } });
           };
+          
           await localAi.initEngine(modelId, progressCallback);
-          set({ localAiStatus: 'ready', localAiProgress: 'VRAM Cached successfully.' });
+          
+          set({ localAiStatus: 'ready', localAiProgress: { text: 'Hardware compilation successful.', percent: 100 } });
           
           setTimeout(() => {
-             set({ localAiProgress: '' }); // Clear the UI trace
+             set({ localAiProgress: null }); // Clear the UI trace entirely when done
           }, 4000);
           return true;
         } catch (error) {
           console.error('[AppStore] Local Model Initialization failed:', error);
-          set({ localAiStatus: 'error', localAiProgress: 'Hardware unsupported or VRAM overflow.' });
-          toast.error("GPU acceleration failed. Automatically switching back to Cloud AI.");
-          set({ selectedModel: DEFAULT_MODEL });
+          set({ localAiStatus: 'error', localAiProgress: { text: 'Hardware unsupported.', percent: 0 } });
+          toast.error("GPU acceleration failed. Your browser (like Brave/Mobile) likely blocks WebGPU. Try Chrome Desktop!", { icon: '🛑', duration: 6000 });
+          set({ selectedModel: 'llama-3.1-8b-instant' });
           return false;
+        }
+      },
+
+      cancelLocalModel: (specificModelFallback = null) => {
+        // Drop the engine binding and revert UI to Cloud implicitly
+        set((state) => ({ localAiStatus: 'idle', localAiProgress: null, selectedModel: specificModelFallback || DEFAULT_MODEL }));
+        if (!specificModelFallback) {
+          toast("Local Download Cancelled", { description: "Switched back to Cloud logic.", icon: '🛑' });
         }
       },
 
@@ -163,9 +209,12 @@ export const useAppStore = create(
 
           // Model Routing Logic: Is this destined for the WebGPU or passing out over exactly Cloud edge?
           let response;
-          const isLocalModel = selectedModel.includes('-MLC'); // All WebLLM models suffix MLC
+          const isWebLLM = selectedModel.includes('-MLC'); // All WebLLM models suffix MLC
           
-          if (isLocalModel) {
+          if (isWebLLM) {
+            if (get().localAiStatus !== 'ready') {
+                await get().initLocalModel(selectedModel);
+            }
             // Re-map internal structures seamlessly
             const localReply = await localAi.generateChat([...tempMessages.slice(0, -1), { role: 'user', content: finalPrompt }], hiddenContext);
             response = { reply: localReply, isModelError: false };
@@ -183,7 +232,68 @@ export const useAppStore = create(
             set({ selectedModel: DEFAULT_MODEL });
           }
         } catch (e) {
-          const errorMsg = { id: nanoid(), role: 'assistant', content: "I am unable to reach the network core. Please verify your connection.", createdAt: Date.now() };
+          console.error("Chat Pipeline System Error:", e);
+          const errorMsg = { id: nanoid(), role: 'assistant', content: `[ENGINE FATAL] ${e.message}`, createdAt: Date.now() };
+          set((state) => ({
+            chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: [...chat.messages, errorMsg] } : chat)
+          }));
+        } finally {
+          set({ isTyping: false });
+        }
+      },
+
+      regenerateMessage: async (messageId) => {
+        const { isTyping, chats, activeChatId, selectedModel } = get();
+        if (isTyping) return;
+        
+        const activeChat = chats.find(c => c.id === activeChatId);
+        if (!activeChat) return;
+
+        const msgIndex = activeChat.messages.findIndex(m => m.id === messageId);
+        if (msgIndex === -1 || activeChat.messages[msgIndex].role !== 'assistant') return;
+
+        const prevMsg = activeChat.messages[msgIndex - 1];
+        if (!prevMsg || prevMsg.role !== 'user') return;
+
+        // Truncate the chat branch exactly at the failed AI message
+        const tempMessages = activeChat.messages.slice(0, msgIndex);
+        
+        set((state) => ({
+          chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: tempMessages } : chat),
+          isTyping: true
+        }));
+
+        try {
+          let finalPrompt = prevMsg.content;
+          const { hiddenContext } = prevMsg;
+          
+          if (finalPrompt === '[Attached Document]') {
+            finalPrompt = "[See Attached Context]";
+          }
+
+          let response;
+          const isWebLLM = selectedModel.includes('-MLC');
+          
+          if (isWebLLM) {
+            if (get().localAiStatus !== 'ready') await get().initLocalModel(selectedModel);
+            const localReply = await localAi.generateChat([...tempMessages.slice(0, -1), { role: 'user', content: finalPrompt }], hiddenContext);
+            response = { reply: localReply, isModelError: false };
+          } else {
+            response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
+          }
+
+          const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
+
+          set((state) => ({
+            chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: [...chat.messages, assistantMsg] } : chat)
+          }));
+
+          if (response.isModelError) {
+            set({ selectedModel: DEFAULT_MODEL });
+          }
+        } catch (e) {
+          console.error("Regeneration Fatal Pipeline:", e);
+          const errorMsg = { id: nanoid(), role: 'assistant', content: `[ENGINE FATAL] ${e.message}`, createdAt: Date.now() };
           set((state) => ({
             chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: [...chat.messages, errorMsg] } : chat)
           }));

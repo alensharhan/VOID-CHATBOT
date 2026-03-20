@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Infinity, Copy, Check, Volume2, VolumeX } from 'lucide-react';
+import { User, Infinity, Copy, Check, Volume2, VolumeX, RefreshCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -67,6 +67,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 const MessageBubble = ({ message }) => {
   const isUser = message.role === 'user';
   
+  const [isCopied, setIsCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
@@ -90,8 +91,6 @@ const MessageBubble = ({ message }) => {
       return;
     }
 
-    window.speechSynthesis.cancel(); // Halt any active lingering AI voices
-
     // Advanced stripping of markdown, giant code blocks, and repetitive symbols (like ==== or ----)
     const spokenText = message.content
       .replace(/```[\s\S]*?```/g, ' . Code snippet omitted. ') // Remove large code blocks
@@ -113,12 +112,22 @@ const MessageBubble = ({ message }) => {
     window.speechSynthesis.speak(utterance);
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 5 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`flex gap-3 md:gap-5 w-full ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+      className={`flex gap-3 md:gap-5 w-full group ${isUser ? 'flex-row-reverse items-end' : 'flex-row'}`}
     >
       <div className={`py-3.5 px-5 rounded-[24px] max-w-full md:max-w-[90%] break-words ${isUser
         ? 'bg-zinc-100 border text-zinc-900 border-zinc-200/60 dark:bg-[#2A2A2A] dark:border-white/5 dark:text-[#D9D9D9] rounded-tr-sm whitespace-pre-wrap text-[15px] leading-relaxed shadow-sm dark:shadow-none'
@@ -153,23 +162,50 @@ const MessageBubble = ({ message }) => {
                 {message.content}
               </ReactMarkdown>
             </div>
-            
-            <div className="flex items-center gap-3 pt-3 mt-1.5 border-t border-zinc-200/50 dark:border-white/5">
+            <div className="flex items-center gap-1.5 mt-1 -ml-1.5 opacity-100 transition-opacity duration-200">
               <button
                 onClick={handleSpeak}
-                className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+                className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-md transition-all"
+                title="Read aloud"
               >
-                {isSpeaking ? (
-                  <VolumeX className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5" />
-                )}
-                {isSpeaking ? <span className="text-blue-500">Stop reading</span> : <span>Read aloud</span>}
+                {isSpeaking ? <VolumeX className="w-4 h-4 text-blue-500 animate-pulse" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              
+              <button
+                onClick={handleCopy}
+                className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-md transition-all"
+                title="Copy message"
+              >
+                {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              </button>
+              
+              <button
+                onClick={() => {
+                  import('../store/useAppStore').then(module => {
+                    module.useAppStore.getState().regenerateMessage(message.id);
+                  });
+                }}
+                className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-md transition-all"
+                title="Regenerate response"
+              >
+                <RefreshCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {isUser && (
+        <div className="flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 mb-1">
+          <button
+            onClick={handleCopy}
+            className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-md transition-all"
+            title="Copy message"
+          >
+            {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };

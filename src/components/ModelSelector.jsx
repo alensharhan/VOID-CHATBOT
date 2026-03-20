@@ -49,29 +49,39 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const [gpuStatus, setGpuStatus] = useState({ supported: false, isLowEnd: true });
+  const [gpuStatus, setGpuStatus] = useState({ supported: false, maxSafeVram: 0 });
 
   useEffect(() => {
     const checkGpu = async () => {
       if (!navigator.gpu) {
-        setGpuStatus({ supported: false, isLowEnd: true });
+        setGpuStatus({ supported: false, maxSafeVram: 0 });
         return;
       }
       try {
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
-          setGpuStatus({ supported: false, isLowEnd: true });
+          setGpuStatus({ supported: false, maxSafeVram: 0 });
           return;
         }
         
-        // Check VRAM limits if possible. Max storage buffer is a decent proxy.
-        // A typical 8GB RAM system gives ~2GB max buffer. 16GB gives ~4GB max buffer.
-        const maxBuffer = adapter.limits?.maxStorageBufferBindingSize || 0;
-        const isLowEnd = maxBuffer < 2147483648; // Less than 2GB max buffer bound implies <8GB total system RAM/VRAM
+        // Use deviceMemory API (returns GB) to build a robust unified architecture proxy
+        const systemRam = navigator.deviceMemory || 4; // Assume 4GB baseline if API is blocked by privacy
+        let maxSafeVram = 1;
         
-        setGpuStatus({ supported: true, isLowEnd });
+        if (systemRam > 8) maxSafeVram = 6; // 16GB+ systems easily handle massive local LLMs 
+        else if (systemRam >= 8) maxSafeVram = 3; // 8GB systems handle ~3GB safely
+        else if (systemRam >= 4) maxSafeVram = 1.5; // 4GB systems handle ~1.5GB cleanly
+        else maxSafeVram = 0.5; // Minimum spec handles absolute micro models only
+        
+        // Also strictly obey hardware pipeline max buffer limits natively 
+        const maxBuffer = adapter.limits?.maxStorageBufferBindingSize || Infinity;
+        if (maxBuffer < 2147483648 && maxSafeVram > 2) {
+          maxSafeVram = 2; // Hard cap if the specific graphical engine restricts buffer sizes
+        }
+
+        setGpuStatus({ supported: true, maxSafeVram });
       } catch (e) {
-         setGpuStatus({ supported: false, isLowEnd: true });
+         setGpuStatus({ supported: false, maxSafeVram: 0 });
       }
     };
     checkGpu();
@@ -79,7 +89,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
 
   const allModels = [...availableModels, ...LOCAL_MODELS];
   const activeModel = allModels.find(m => m.id === selectedModel);
-  const activeParams = activeModel ? enrichModelData(activeModel.id, activeModel.name) : null;
+  const activeParams = activeModel ? enrichModelData(activeModel.id, activeModel.name) : enrichModelData(selectedModel, selectedModel);
   const ActiveIcon = activeParams?.Icon || Sparkles;
 
   const groupedModels = useMemo(() => {
@@ -130,9 +140,9 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed top-[64px] left-3 right-3 sm:absolute sm:top-[100%] sm:left-0 sm:right-auto sm:mt-[1.2rem] sm:w-[360px] max-h-[55vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 pr-2.5 pl-0"
+            className="fixed top-[64px] left-3 right-3 sm:absolute sm:top-[100%] sm:left-0 sm:right-auto sm:mt-[1.2rem] sm:w-[360px] max-h-[55vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 px-0"
           >
-            <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col pl-1.5 pr-0.5 pb-2">
+            <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col px-1.5 pb-2">
               {groupedModels.map((group, gIdx) => (
                 <div key={group.groupName} className="flex flex-col shrink-0">
                   {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2 shrink-0" />}
@@ -140,36 +150,40 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
                     {group.groupName}
                   </div>
 
-                  <div className="flex flex-col gap-0.5 px-2 shrink-0">
-                    {group.models.map(m => {
-                      const MIcon = m.Icon;
-                      const isSelected = selectedModel === m.id;
-                      const isLocal = m.id.includes('-MLC');
-                      
-                      let isDisabled = false;
-                      let disableReason = "";
-                      
-                      if (isLocal) {
-                        if (!gpuStatus.supported) {
-                          isDisabled = true;
-                          disableReason = "Requires a modern WebGPU-compatible graphics card, which your device lacks.";
-                        } else if (gpuStatus.isLowEnd && m.vramWarning && m.vramWarning > 2) {
-                          isDisabled = true;
-                          disableReason = `Requires ${m.vramWarning}GB+ VRAM. Your device has limited unified memory and would crash if this model is loaded.`;
-                        }
-                      }
+                    <div className="flex flex-col gap-1 w-full pl-0">
+                      {group.models.map(m => {
+                        const MIcon = m.Icon;
+                        const isSelected = selectedModel === m.id;
+                        const isWebLLM = m.id.includes('-MLC');
+                        
+                        let isDisabled = false;
+                        let disableReason = null;
 
-                      return (
-                        <button
-                          key={m.id}
+                        if (isWebLLM) {
+                          if (!gpuStatus.supported) {
+                            isDisabled = true;
+                            disableReason = 'WebGPU strictly required natively.';
+                          } else if (m.vramWarning > gpuStatus.maxSafeVram) {
+                            isDisabled = true;
+                            disableReason = `Requires ~${m.vramWarning}GB VRAM (Your Safe Limit: ${gpuStatus.maxSafeVram}GB)`;
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={m.id}
                           disabled={isDisabled}
                           title={disableReason}
-                          onClick={() => {
-                            if (!isDisabled) {
-                              onModelChange(m.id);
-                              setIsOpen(false);
-                            }
-                          }}
+                            onClick={() => {
+                              if (!isDisabled) {
+                                onModelChange(m.id);
+                                if (!isWebLLM) {
+                                  // Important: Force clear any background progress UIs if they jump to a cloud model mid-download
+                                  import('../store/useAppStore').then(module => module.useAppStore.getState().cancelLocalModel(m.id));
+                                }
+                                setIsOpen(false);
+                              }
+                            }}
                           className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${isDisabled ? 'opacity-40 cursor-not-allowed bg-transparent' : isSelected
                               ? 'bg-blue-50/50 dark:bg-blue-500/10 cursor-pointer'
                               : 'hover:bg-zinc-50 dark:hover:bg-white/5 cursor-pointer'

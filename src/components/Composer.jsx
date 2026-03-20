@@ -1,16 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, AlignLeft, ChevronDown, Check, Mic, Plus, Paperclip, X, FileText, Upload, Eye, Cpu } from 'lucide-react';
-import * as pdfjsLib from 'pdfjs-dist';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import RAGSystem from '../lib/rag';
 import { useDropzone } from 'react-dropzone';
 import { useHotkeys } from 'react-hotkeys-hook';
 import PDFPreview from './PDFPreview';
+import { extractTextFromPDF } from '../lib/pdfParser';
 
-// Use UNPKG to reliably load the identical version's worker file locally in the client
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 import TextareaAutosize from 'react-textarea-autosize';
 import { useAppStore } from '../store/useAppStore';
 import { toast } from 'sonner';
@@ -49,6 +47,15 @@ const Composer = () => {
   // Parse a raw File object (shared between the Dropzone and the manual file button)
   const parseFile = useCallback(async (file) => {
     if (!file) return;
+
+    // Hardened strict whitelist to physically block all OS-level directories and unknown binaries natively.
+    const validExtensions = ['.pdf', '.txt', '.csv', '.md', '.json', '.xlsx', '.xls'];
+    const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    if (!hasValidExt) {
+      toast.error('Unsupported file format or structural folder detected.', { icon: '🛡️' });
+      return;
+    }
+
     if (file.size > 15 * 1024 * 1024) {
       toast.error('File is too large. Limit is 15MB.', { icon: '📦' });
       return;
@@ -61,21 +68,10 @@ const Composer = () => {
       let extractedText = '';
 
       if (file.type === 'application/pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const maxPages = Math.min(pdf.numPages, 30);
-        let textArray = [];
-        for (let i = 1; i <= maxPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          textArray.push(textContent.items.map(s => s.str).join(' '));
-        }
-        extractedText = textArray.join('\n\n');
-        if (pdf.numPages > 30) {
-          toast.warning(`Only the first 30 pages of ${file.name} were parsed.`, { id: toastId, duration: 5000 });
-        } else {
-          toast.success(`${file.name} successfully parsed!`, { id: toastId });
-        }
+        extractedText = await extractTextFromPDF(file);
+        // Estimate pages visually based on ~2000 chars per page
+        const approxPages = Math.ceil(extractedText.length / 2000) || 1;
+        toast.success(`Extracted ~${approxPages} pages from ${file.name} successfully!`, { id: toastId });
       } else if (file.name.endsWith('.csv') || file.type === 'text/csv') {
         extractedText = await new Promise((resolve, reject) => {
           Papa.parse(file, {
@@ -225,10 +221,9 @@ const Composer = () => {
   // Trigger hardware model download when selected
   useEffect(() => {
     if (selectedModel && selectedModel.includes('-MLC')) {
-      // Only init if idle or if we switched hardware models
       initLocalModel(selectedModel);
     }
-  }, [selectedModel]);
+  }, [selectedModel, initLocalModel]);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -273,9 +268,38 @@ const Composer = () => {
         }
         // --- END WIKIPEDIA ROUTER ---
         
-        // Automatically scrape external URLs mentioned in the prompt
+        // Priority detection: Check for YouTube URLs first to intercept heavy video matrices natively
+        const ytMatch = finalText.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
         const urlMatch = finalText.match(/(https?:\/\/[^\s]+)/);
-        if (urlMatch) {
+
+        if (ytMatch && ytMatch[0]) {
+          setIsParsing(true);
+          const ytUrl = ytMatch[0].startsWith('http') ? ytMatch[0] : `https://${ytMatch[0]}`;
+          const toastId = toast.loading('Extracting YouTube Transcripts autonomously...');
+          try {
+            const res = await fetch(`/.netlify/functions/youtube`, {
+              method: 'POST',
+              body: JSON.stringify({ url: ytUrl })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.transcript) {
+                hiddenContext += `[SYSTEM BACKGROUND DATA: The user pasted a YouTube video link. Here is the EXACT word-for-word encrypted transcript of the video. Use this to explicitly answer their questions without hallucination:]\n\n${data.transcript}\n\n`;
+                toast.success('YouTube Video perfectly memorized!', { id: toastId });
+              } else {
+                toast.error('Failed to parse empty YouTube captions.', { id: toastId });
+              }
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              toast.error(errData.error || 'Could not securely extract closed captions from this video hash.', { id: toastId });
+            }
+          } catch (e) {
+            toast.error('Network error reaching the YouTube extraction bridge.', { id: toastId });
+          } finally {
+            setIsParsing(false);
+          }
+        } else if (urlMatch) {
           setIsParsing(true);
           const toastId = toast.loading(`Scraping website: ${urlMatch[0]}...`);
           try {
@@ -287,10 +311,10 @@ const Composer = () => {
                 toast.success('Website memory loaded!', { id: toastId });
               }
             } else {
-              toast.error('Website blocked scraping attempts.', { id: toastId });
+              toast.error('Website aggressively blocked scraping attempts.', { id: toastId });
             }
           } catch (e) {
-            toast.error('Network error bridging to scraper.', { id: toastId });
+            toast.error('Network error bridging to DOM scraper.', { id: toastId });
           } finally {
             setIsParsing(false);
           }
@@ -397,9 +421,37 @@ const Composer = () => {
               exit={{ height: 0, opacity: 0 }}
               className="px-2 pb-2"
             >
-              <div className="flex items-center justify-between w-full text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-500/10 px-3 py-2 rounded-xl border border-blue-100 dark:border-blue-500/20 shadow-sm overflow-hidden">
-                <span className="truncate pr-4 flex-1">{localAiProgress}</span>
-                <span className="shrink-0 flex items-center gap-1"><Cpu className="w-3.5 h-3.5 animate-pulse" /> HW-Acceleration</span>
+              <div className="flex flex-col w-full text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/20 shadow-sm overflow-hidden">
+                <div className="flex flex-col relative px-3 py-2 z-10 w-full">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="whitespace-normal break-words pr-4 flex-1 leading-snug">
+                      {typeof localAiProgress === 'object' ? localAiProgress.text : localAiProgress}
+                    </span>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {typeof localAiProgress === 'object' && localAiProgress.percent > 0 && (
+                        <span className="font-bold text-blue-600 dark:text-blue-300">{localAiProgress.percent}%</span>
+                      )}
+                      <span className="flex items-center gap-1 opacity-80 border-r border-blue-200 dark:border-blue-500/30 pr-2 mr-1"><Cpu className="w-3.5 h-3.5 animate-pulse" /> HW-Acceleration</span>
+                      <button 
+                        onClick={() => useAppStore.getState().cancelLocalModel()}
+                        className="flex items-center justify-center p-0.5 rounded-md hover:bg-blue-200/50 dark:hover:bg-white/10 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                        title="Cancel Download"
+                      >
+                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Graphical Progress Bar Track */}
+                  {typeof localAiProgress === 'object' && localAiProgress.percent > 0 && (
+                    <div className="w-full h-1.5 bg-blue-200/50 dark:bg-blue-900/30 rounded-full mt-2.5 overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-300 ease-out" 
+                          style={{ width: `${localAiProgress.percent}%` }}
+                        />
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
