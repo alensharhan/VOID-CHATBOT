@@ -103,8 +103,29 @@ const MessageBubble = ({ message }) => {
       .trim();
 
     const utterance = new SpeechSynthesisUtterance(spokenText);
+    
+    // Explicitly scan the operating system for zero-delay, premium female voice profiles
+    const voices = window.speechSynthesis.getVoices();
+    const premiumFemaleVoice = voices.find(v => 
+      v.name.includes('Google UK English Female') || 
+      v.name.includes('Samantha') || 
+      v.name.includes('Microsoft Zira') || 
+      v.name.includes('Victoria') ||
+      v.name.includes('Karen') ||
+      (v.name.toLowerCase().includes('female') && v.lang.startsWith('en')) ||
+      (v.name.toLowerCase().includes('woman') && v.lang.startsWith('en'))
+    );
+
+    if (premiumFemaleVoice) {
+      utterance.voice = premiumFemaleVoice;
+    } else {
+      // Fallback: Grab the best available English voice natively if a specific female model isn't installed
+      const englishVoice = voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+      if (englishVoice) utterance.voice = englishVoice;
+    }
+
     utterance.rate = 1.05;
-    utterance.pitch = 1.0;
+    utterance.pitch = 1.15; // Slightly elevated pitch forces default neutral voices to sound significantly more female and natural
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);

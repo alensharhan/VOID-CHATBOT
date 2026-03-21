@@ -1,4 +1,4 @@
-export async function sendMessage(message, chatHistory = [], modelId, hiddenContext = null) {
+export async function sendMessage(message, chatHistory = [], modelId, hiddenContext = null, systemInstructions = null) {
   const apiUrl = '/api/chat';
 
   // Format history safely: only send role and content to Groq, merging hidden context natively
@@ -22,6 +22,7 @@ export async function sendMessage(message, chatHistory = [], modelId, hiddenCont
       body: JSON.stringify({ 
         message, 
         hiddenContext,
+        systemInstructions,
         messages: cleanHistory,
         model: modelId
       }),

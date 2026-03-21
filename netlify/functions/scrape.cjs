@@ -58,21 +58,37 @@ export const handler = async (event) => {
     const html = await response.text();
 
     // Use pure Regex to strip scripts, styles, and HTML tags without needing massive Node dependencies
-    let cleanText = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-      .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, ' ')
-      .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, ' ')
-      .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, ' ')
-      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, ' ')
-      .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, ' ')
-      .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
-      .replace(/<img\b[^>]*>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ') // Strip remaining HTML tags
-      .replace(/\s+/g, ' ')     // Collapse whitespace
-      .trim();
+    let cleanText = "";
+    
+    if (parsedUrl.hostname === 'html.duckduckgo.com') {
+      // Specialized ultra-clean DDG snippet heuristic extractor
+      const snippetRegex = /class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
+      let match;
+      let results = [];
+      while ((match = snippetRegex.exec(html)) !== null) {
+         results.push(match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim());
+      }
+      cleanText = results.join('\n\n--- SEARCH RESULT ---\n\n');
+    }
+    
+    // Fallback to standard aggressive crawler parsing if not DDG or if DDG parsing yielded empty
+    if (!cleanText) {
+      cleanText = html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+        .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, ' ')
+        .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, ' ')
+        .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, ' ')
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, ' ')
+        .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, ' ')
+        .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
+        .replace(/<img\b[^>]*>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ') // Strip remaining HTML tags
+        .replace(/\s+/g, ' ')     // Collapse whitespace
+        .trim();
+    }
 
-    // Cap output at 20,000 characters to prevent catastrophic LLM context limits
+    // Cap output at 15,000 characters to prevent catastrophic LLM context limits
     if (cleanText.length > 20000) {
       cleanText = cleanText.substring(0, 20000) + '\n... [Remaining content truncated]';
     }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, AlignLeft, ChevronDown, Check, Mic, Plus, Paperclip, X, FileText, Upload, Eye, Cpu } from 'lucide-react';
+import { ArrowUp, AlignLeft, ChevronDown, Check, Mic, Plus, Paperclip, X, FileText, Upload, Eye, Cpu, Globe, Zap, FileJson, BookOpen, Sparkles, SlidersHorizontal, User, Briefcase, ZapIcon } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import RAGSystem from '../lib/rag';
@@ -9,7 +9,6 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import PDFPreview from './PDFPreview';
 import { extractTextFromPDF } from '../lib/pdfParser';
 
-import TextareaAutosize from 'react-textarea-autosize';
 import { useAppStore } from '../store/useAppStore';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -17,15 +16,13 @@ import { cn } from '../lib/utils';
 const LENGTH_MODES = ['Auto', 'Snapshot', 'Concise', 'In-Depth'];
 
 const Composer = () => {
-  const { sendChatMessage: onSend, isTyping, selectedModel } = useAppStore();
+  const { sendChatMessage: onSend, isTyping, selectedModel, outputLength, setOutputLength, responseBehavior, setResponseBehavior } = useAppStore();
   const disabled = isTyping;
   const [text, setText] = useState('');
-  const [outputLength, setOutputLength] = useState('Auto');
-  const [isLengthMenuOpen, setIsLengthMenuOpen] = useState(false);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const [isWebSearchActive, setIsWebSearchActive] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const textareaRef = useRef(null);
-  const menuRef = useRef(null);
-  const toggleRef = useRef(null);
   const attachMenuRef = useRef(null);
   const attachToggleRef = useRef(null);
 
@@ -42,7 +39,7 @@ const Composer = () => {
 
   // Keyboard shortcuts
   useHotkeys('mod+k', (e) => { e.preventDefault(); textareaRef.current?.focus(); }, { enableOnFormTags: false });
-  useHotkeys('escape', () => { setIsLengthMenuOpen(false); setIsAttachMenuOpen(false); textareaRef.current?.blur(); }, { enableOnFormTags: true });
+  useHotkeys('escape', () => { setIsAttachMenuOpen(false); textareaRef.current?.blur(); }, { enableOnFormTags: true });
 
   // Parse a raw File object (shared between the Dropzone and the manual file button)
   const parseFile = useCallback(async (file) => {
@@ -201,16 +198,13 @@ const Composer = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target) && toggleRef.current && !toggleRef.current.contains(e.target)) {
-        setIsLengthMenuOpen(false);
-      }
       if (attachMenuRef.current && !attachMenuRef.current.contains(e.target) && attachToggleRef.current && !attachToggleRef.current.contains(e.target)) {
         setIsAttachMenuOpen(false);
       }
     };
-    if (isLengthMenuOpen || isAttachMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+    if (isAttachMenuOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isLengthMenuOpen, isAttachMenuOpen]);
+  }, [isAttachMenuOpen]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -230,39 +224,57 @@ const Composer = () => {
     }
 
     if (text.trim() || attachedFile) {
-      if (!disabled && !isProcessingVoice && !isParsing) {
+      if (!disabled && !isProcessingVoice && !isParsing) try {
         let finalText = text.trim();
         let hiddenContext = "";
 
-        // --- BACKGROUND WIKIPEDIA ROUTER ---
-        // Secretly detect if the user is asking about a factual entity or concept
-        const getWikiTopic = (q) => {
-          let match = q.match(/(?:search wikipedia for|lookup)\s+([^?.,!]+)/i);
+        // --- LIVE SEARCH AUTONOMOUS ROUTER (FREE SCALING WEB ENGINE) ---
+        // Secretly detect if the user needs realtime facts, news, stocks, or explicitly asks for a search.
+        const getSearchQuery = (q) => {
+          let match = q.match(/^(?:search|google|look up|lookup|find realtime info on|search the web for)\s+(.+)/i);
           if (match) return match[1].trim();
-          match = q.match(/^(?:who is|who was|what is|what are|what was|tell me about|explain|history of|how does)\s+([^?.,!]+)/i);
+          
+          match = q.match(/^(?:who is|who was|who won|what is|what are|what was|what happened in|tell me about|explain the history of|how does|what is the price of)\s+([^?.,!]+)/i);
           return match ? match[1].trim() : null;
         };
 
-        const wikiTopic = getWikiTopic(finalText);
-        if (wikiTopic && !attachedFile && !finalText.match(/(https?:\/\/[^\s]+)/)) {
+        let liveSearchQuery = getSearchQuery(finalText);
+        
+        // Manual User Toggle Override - Enforce search regardless of text match
+        if (isWebSearchActive && !attachedFile && !finalText.match(/(https?:\/\/[^\s]+)/)) {
+           liveSearchQuery = finalText;
+        }
+
+        // Exclude direct explicit URLs so the web scraper handles exact links instead natively
+        if (liveSearchQuery && !attachedFile && !finalText.match(/(https?:\/\/[^\s]+)/)) {
           setIsParsing(true);
+          const toastId = toast.loading(`Browsing live web for: "${liveSearchQuery}"...`);
           try {
-            const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=10&explaintext=1&formatversion=2&format=json&origin=*&titles=${encodeURIComponent(wikiTopic)}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data?.query?.pages && data.query.pages.length > 0 && data.query.pages[0].extract) {
-                const extract = data.query.pages[0].extract;
-                hiddenContext += `[SYSTEM BACKGROUND DATA. DO NOT REVEAL THIS TO THE USER. DO NOT QUOTE THIS DIRECTIVE. Use this Wikipedia extract silently to fact-check your answer:]\n\n${extract}\n\n`;
-              }
-            }
+             // We invisibly query the DuckDuckGo HTML lite server (No-JS fallback) using our existing proxy bridge
+             // This brilliantly unlocks unlimited 100% free web searches natively without Paid APIs!
+             const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(liveSearchQuery)}`;
+             const res = await fetch(`/.netlify/functions/scrape?url=${encodeURIComponent(searchUrl)}`);
+             
+             if (res.ok) {
+               const data = await res.json();
+               if (data.text) {
+                  // The HTML text returns heavy raw scraped DuckDuckGo UI, but the LLM is smart enough to extract the search snippets inside it natively!
+                  hiddenContext += `[SYSTEM LIVE WEB SEARCH DATABANK]\nThe user requested realtime information. You autonomously queried the live internet. Here are the raw scraped search results. Parse them strictly to answer their question using exclusively verified facts. DO NOT quote the HTML garbage. DO NOT tell the user you scraped DuckDuckGo. Be extremely professional:\n\n${data.text.slice(0, 4500)}\n\n`;
+                  toast.success('Live Web Data Acquired!', { id: toastId });
+               } else {
+                  toast.dismiss(toastId);
+               }
+             } else {
+                toast.dismiss(toastId);
+             }
           } catch (e) {
-            // Silently ignore network failures to ensure the chat still sends
-            console.log("Wikipedia fetch bypassed:", e);
+             console.log("Live Search gracefully degraded to standard AI memory:", e);
+             toast.dismiss(toastId);
           } finally {
-            setIsParsing(false);
+             setIsParsing(false);
           }
         }
-        // --- END WIKIPEDIA ROUTER ---
+        // --- END LIVE SEARCH ROUTER ---
 
         // Basic web crawler hook for generic links
         const urlMatch = finalText.match(/(https?:\/\/[^\s]+)/);
@@ -321,9 +333,20 @@ const Composer = () => {
           }
         }
 
-        onSend(finalText, hiddenContext.trim() ? hiddenContext.trim() : null, outputLength);
+        if (hiddenContext) {
+          onSend(finalText, hiddenContext);
+        } else {
+          onSend(finalText, null);
+        }
         setText('');
         setAttachedFile(null);
+        setIsWebSearchActive(false); // Reset to base chatting mode gracefully
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+      } catch (error) {
+        console.error("Error during message submission:", error);
+        toast.error("Failed to send message. Please try again.");
       }
     }
   };
@@ -379,16 +402,15 @@ const Composer = () => {
 
           {/* Input Row */}
           <div className="flex items-end gap-2.5 w-full">
-            <TextareaAutosize
+            <textarea
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Recording your voice..." : "Message VOID..."}
+              placeholder={isRecording ? "Recording your voice..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
-              maxRows={10}
-              minRows={1}
-              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 min-h-[36px]"
+              rows={1}
+              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 h-[36px] min-h-[36px] max-h-[36px] overflow-y-auto"
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
@@ -433,18 +455,17 @@ const Composer = () => {
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
               </button>
 
-              <button
-                ref={toggleRef}
-                onClick={() => setIsLengthMenuOpen(!isLengthMenuOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-semibold tracking-wide transition-colors ${outputLength !== 'Auto' || isLengthMenuOpen
-                    ? 'bg-zinc-200 text-zinc-800 dark:bg-white/10 dark:text-zinc-200'
-                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
-                  }`}
-              >
-                <AlignLeft className="w-3.5 h-3.5 opacity-80" />
-                <span>{outputLength}</span>
-                <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${isLengthMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
+              {isWebSearchActive && (
+                <button
+                  onClick={() => setIsWebSearchActive(false)}
+                  disabled={disabled || isProcessingVoice || isParsing}
+                  className="group flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
+                >
+                  <Globe className="w-[14px] h-[14px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
+                  <span>Search</span>
+                  <X className="w-3.5 h-3.5 ml-0.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -454,40 +475,32 @@ const Composer = () => {
         {isAttachMenuOpen && (
           <div
             ref={attachMenuRef}
-            className="absolute left-2 bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
+            className="absolute left-2 bottom-[calc(100%+8px)] w-[200px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col gap-0.5 font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
           >
             <button
               onClick={() => { fileInputRef.current?.click(); setIsAttachMenuOpen(false); }}
-              className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
             >
-              <Paperclip className="w-3.5 h-3.5 shrink-0" />
+              <Paperclip className="w-4 h-4 shrink-0 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
               <span>Upload files</span>
             </button>
-          </div>
-        )}
-
-        {/* Length Popover Menu */}
-        {isLengthMenuOpen && (
-          <div
-            ref={menuRef}
-            className="absolute left-[44px] bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
-          >
-            <div className="px-2 pb-1.5 pt-1 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">RESPONSE LENGTH</div>
-            <div className="flex flex-col gap-0.5">
-              {LENGTH_MODES.map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => { setOutputLength(mode); setIsLengthMenuOpen(false); }}
-                  className={`flex items-center justify-between px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group ${outputLength === mode
-                      ? 'text-zinc-900 bg-zinc-100 dark:text-white dark:bg-white/10'
-                      : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10'
-                    }`}
-                >
-                  <span>{mode}</span>
-                  {outputLength === mode && <Check className="w-[14px] h-[14px] shrink-0 text-zinc-700 dark:text-zinc-300" />}
-                </button>
-              ))}
-            </div>
+            <button
+               onClick={() => { setIsWebSearchActive(true); setIsAttachMenuOpen(false); textareaRef.current?.focus(); }}
+               className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            >
+               <Globe className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
+               <span>Web search</span>
+            </button>
+            
+            <div className="h-[1px] bg-zinc-100 dark:bg-white/10 w-full my-1" />
+            
+            <button
+               onClick={() => { setIsSettingsModalOpen(true); setIsAttachMenuOpen(false); }}
+               className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            >
+               <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors" />
+               <span>Response Tone</span>
+            </button>
           </div>
         )}
         <div className="text-center text-xs text-zinc-500 dark:text-zinc-500 tracking-wide mt-1">
@@ -501,6 +514,118 @@ const Composer = () => {
           onClose={() => setIsPDFPreviewOpen(false)}
         />
       )}
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99]"
+          >
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setIsSettingsModalOpen(false)}
+            />
+            
+            {/* Dialog Panel */}
+            <div className="absolute inset-0 flex items-center justify-center p-4 py-10 overflow-y-auto pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg rounded-2xl shadow-2xl pointer-events-auto flex flex-col font-sans overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-white/5">
+                  <div className="flex items-center gap-2.5 text-zinc-900 dark:text-zinc-100 font-semibold tracking-wide">
+                    <SlidersHorizontal className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
+                    <span>Response Configuration</span>
+                  </div>
+                  <button 
+                    onClick={() => setIsSettingsModalOpen(false)}
+                    className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="p-5 flex flex-col gap-6">
+                  {/* Length Section */}
+                  <div>
+                    <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">Response Verbosity</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: 'Auto', label: 'Auto', icon: Sparkles },
+                        { id: 'Snapshot', label: 'Snapshot', icon: Zap },
+                        { id: 'Concise', label: 'Concise', icon: FileJson },
+                        { id: 'In-Depth', label: 'In-Depth', icon: BookOpen }
+                      ].map((mode) => (
+                        <button
+                          key={mode.id}
+                          onClick={() => setOutputLength(mode.id)}
+                          className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all ${outputLength === mode.id
+                              ? 'bg-blue-50/50 border-blue-500/30 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400 shadow-sm'
+                              : 'bg-zinc-50 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:bg-white/[0.02] dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
+                            }`}
+                        >
+                          <mode.icon className="w-4 h-4" />
+                          <span className="text-[11px] font-[600] tracking-wide">{mode.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Behavior Section */}
+                  <div>
+                    <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">AI Personality</h3>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { id: 'Default', title: 'Default Standard', desc: 'Balanced, helpful, and natural formatting.', icon: Cpu },
+                        { id: 'Professional', title: 'Professional & Formal', desc: 'Strictly objective, formal, and business-oriented. No emojis.', icon: Briefcase },
+                        { id: 'Friendly', title: 'Warm & Friendly', desc: 'Highly supportive, conversational, and encouraging mode.', icon: User },
+                        { id: 'Direct', title: 'Ruthlessly Direct', desc: 'Highly technical. Bullet points only. Zero conversational fluff.', icon: ZapIcon }
+                      ].map((mode) => (
+                        <button
+                          key={mode.id}
+                          onClick={() => setResponseBehavior(mode.id)}
+                          className={`flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${responseBehavior === mode.id
+                              ? 'bg-emerald-50/50 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm'
+                              : 'bg-zinc-50 border-transparent hover:bg-zinc-100 dark:bg-white/[0.02] dark:hover:bg-white/5'
+                            }`}
+                        >
+                          <div className={`mt-0.5 p-1.5 rounded-lg ${responseBehavior === mode.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
+                            <mode.icon className="w-4 h-4" strokeWidth={2.5} />
+                          </div>
+                          <div>
+                            <div className={`text-[14px] font-[600] ${responseBehavior === mode.id ? 'text-emerald-800 dark:text-emerald-300' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                              {mode.title}
+                            </div>
+                            <div className={`text-[12px] leading-relaxed mt-0.5 ${responseBehavior === mode.id ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-zinc-500 dark:text-zinc-500'}`}>
+                              {mode.desc}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end">
+                  <button 
+                    onClick={() => setIsSettingsModalOpen(false)}
+                    className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black rounded-lg text-[13.5px] font-[600] transition-colors shadow-sm"
+                  >
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

@@ -21,6 +21,8 @@ export const useAppStore = create(
       projects: [],
       activeChatId: nanoid(),
       selectedModel: DEFAULT_MODEL,
+      outputLength: 'Auto',
+      responseBehavior: 'Default',
       availableModels: [],
       isLoadingModels: true,
       isTyping: false,
@@ -30,6 +32,8 @@ export const useAppStore = create(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       
       setSelectedModel: (modelId) => set({ selectedModel: modelId }),
+      setOutputLength: (length) => set({ outputLength: length }),
+      setResponseBehavior: (behavior) => set({ responseBehavior: behavior }),
       
       loadModels: async () => {
         set({ isLoadingModels: true });
@@ -98,8 +102,8 @@ export const useAppStore = create(
         chats: state.chats.map(c => c.id === chatId ? { ...c, projectId } : c)
       })),
 
-      sendChatMessage: async (text, hiddenContext = null, outputLength = 'Auto') => {
-        const { isTyping, chats, activeChatId, selectedModel } = get();
+      sendChatMessage: async (text, hiddenContext = null) => {
+        const { isTyping, chats, activeChatId, selectedModel, outputLength, responseBehavior } = get();
         // Allow sending if there's either text or a hidden context payload (like just an attachment)
         if (!text.trim() && !hiddenContext) return;
         if (isTyping) return;
@@ -130,14 +134,24 @@ export const useAppStore = create(
         set({ isTyping: true });
 
         try {
-          let finalPrompt = text.trim() || "[See Attached Context]";
+          let systemInstructions = "";
           
-          if (outputLength === 'Snapshot') finalPrompt += `\n\n[MANDATORY SYSTEM INSTRUCTION: Your response must be an absolute maximum of 1 to 2 sentences. Be razor sharp, highly direct, and get straight to the point without any conversational filler, greetings, or fluff. Give the user exactly what they asked for in the shortest amount of words possible.]`;
-          else if (outputLength === 'Concise') finalPrompt += `\n\n[MANDATORY SYSTEM INSTRUCTION: Keep your response relatively brief and concise. Use short paragraphs. Avoid over-explaining edge cases unless explicitly asked for. Omit long introductions and standard AI disclaimers.]`;
-          else if (outputLength === 'In-Depth') finalPrompt += `\n\n[MANDATORY SYSTEM INSTRUCTION: Provide a highly detailed, comprehensive, and nuanced response to this query. Break the answer down into structured logic, utilize helpful formatting (like bolding, bullet points, or headers), and explore the topic deeply.]`;
+          if (outputLength === 'Snapshot') systemInstructions += `[SYSTEM VERBOSITY: Limit response to exactly 1-2 bullet points. Be razor sharp and hyper-concise. Remove all conversational fluff.]\n`;
+          else if (outputLength === 'Concise') systemInstructions += `[SYSTEM VERBOSITY: Be highly concise. Remove all conversational fluff, introductions, and conclusions. Direct answers only.]\n`;
+          else if (outputLength === 'In-Depth') systemInstructions += `[SYSTEM VERBOSITY: Provide a highly exhaustive, comprehensive response. Explore all edge cases, provide extensive examples, and format with clear headers and structured logic.]\n`;
+
+          if (responseBehavior === 'Professional') systemInstructions += `[SYSTEM PERSONA: Maintain an exceptionally formal, objective, and corporate tone. Strictly business. Zero emojis. Neutral vocabulary.]\n`;
+          else if (responseBehavior === 'Friendly') systemInstructions += `[SYSTEM PERSONA: Be deeply empathetic, exceptionally warm, and highly supportive. Use joyful emojis and a highly conversational, uplifting tone.]\n`;
+          else if (responseBehavior === 'Direct') systemInstructions += `[SYSTEM PERSONA: Assume the user is an expert. Zero pleasantries. Zero warnings. Output strictly the requested information. Remove ALL useless text; include ONLY what is strictly necessary.]\n`;
 
           // Standard secure Cloud routing logic
-          const response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
+          const response = await sendMessage(
+            text.trim() || "[See Attached Context]", 
+            tempMessages.slice(0, -1), 
+            selectedModel, 
+            hiddenContext,
+            systemInstructions
+          );
 
           const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
 
@@ -251,6 +265,8 @@ export const useAppStore = create(
         projects: state.projects,
         selectedModel: state.selectedModel,
         isSidebarOpen: state.isSidebarOpen,
+        outputLength: state.outputLength,
+        responseBehavior: state.responseBehavior
       }), // only persist these fields
     }
   )

@@ -43,7 +43,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    let { message, messages = [], model = "llama-3.3-70b-versatile", hiddenContext = null } = JSON.parse(event.body);
+    let { message, messages = [], model = "llama-3.3-70b-versatile", hiddenContext = null, systemInstructions = null } = JSON.parse(event.body);
 
     // Dynamic Server-Side Model Validation
     const showAdvancedModels = false;
@@ -90,6 +90,10 @@ Strict rules:
 
     if (hiddenContext) {
        sysContent += `\n\n${hiddenContext}`;
+    }
+
+    if (systemInstructions) {
+       sysContent += `\n\n${systemInstructions}`;
     }
 
     const systemMessage = {
