@@ -7,10 +7,23 @@ import ChatWindow from './components/ChatWindow';
 import Composer from './components/Composer';
 
 function App() {
-  const { chats, activeChatId, isTyping, loadModels, optimizeStorage } = useAppStore();
+  const { chats, activeChatId, isTyping, loadModels, optimizeStorage, startNewChat } = useAppStore();
 
   const activeChat = chats.find(c => c.id === activeChatId);
   const currentMessages = activeChat ? activeChat.messages : [];
+
+  // Distinguish between a page refresh and a completely new browser tab/visit
+  useEffect(() => {
+    const isReturningSession = sessionStorage.getItem('void_active_session');
+    
+    if (!isReturningSession) {
+      // User literally just arrived at the website (or opened a new tab). Force a clean slate.
+      startNewChat();
+      sessionStorage.setItem('void_active_session', 'true');
+    }
+    // If 'void_active_session' exists, they just hit F5/Refresh. Do nothing, let Zustand keep the active chat open!
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadModels();
