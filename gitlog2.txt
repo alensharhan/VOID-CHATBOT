@@ -1,0 +1,63 @@
+﻿commit e1d6edd18483b9d25f9d3b103ff03969f3e5a9b0
+Author: alensharhan <alensharhan148@gamil.com>
+Date:   Sun Mar 22 02:43:32 2026 +0530
+
+    Trigger Netlify deployment after recent updates
+
+commit fde6e62e86e4e7a712e926e1d35de8bf2d6be02b
+Author: alensharhan <alensharhan148@gamil.com>
+Date:   Sun Mar 22 02:30:55 2026 +0530
+
+    v4 - new chat when reload
+
+M	src/App.jsx
+
+commit ce59bb115dabda0aa4997102f3ed1906cdad6db0
+Author: alensharhan <alensharhan148@gamil.com>
+Date:   Sun Mar 22 02:24:55 2026 +0530
+
+    v4 - add few features
+
+M	netlify/functions/chat.cjs
+M	netlify/functions/scrape.cjs
+M	src/components/Composer.jsx
+M	src/components/MessageBubble.jsx
+M	src/lib/chatApi.js
+M	src/lib/pdfParser.js
+M	src/store/useAppStore.js
+
+commit 651a6b5eed1de9ff891041c3c506622368a9afa4
+Author: alensharhan <alensharhan148@gamil.com>
+Date:   Sun Mar 22 01:17:37 2026 +0530
+
+    v5- website secure
+
+M	dev-dist/sw.js
+M	netlify/functions/chat.cjs
+M	netlify/functions/scrape.cjs
+M	netlify/functions/youtube.js
+M	package-lock.json
+M	package.json
+M	src/App.jsx
+M	src/components/Composer.jsx
+M	src/components/MessageBubble.jsx
+M	src/components/ModelSelector.jsx
+M	src/components/Sidebar.jsx
+M	src/components/Topbar.jsx
+M	src/index.css
+M	src/lib/chatApi.js
+D	src/lib/localAiEngine.js
+M	src/lib/models.js
+M	src/main.jsx
+M	src/store/useAppStore.js
+A	test-youtube-exports.cjs
+A	test-youtube.mjs
+M	vite.config.js
+
+commit 20c50c169c8817f45e4859825b0f1e1a34268673
+Author: alensharhan <alensharhan148@gamil.com>
+Date:   Sat Mar 21 22:38:49 2026 +0530
+
+    Remove invalid ollamafreeapi_tmp submodule
+
+D	ollamafreeapi_tmp
