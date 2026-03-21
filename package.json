@@ -16,6 +16,7 @@
     "framer-motion": "^11.5.4",
     "groq-sdk": "^1.1.1",
     "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.14.0",
     "idb-keyval": "^6.2.2",
     "kokoro-js": "^1.2.1",
     "lucide-react": "^0.441.0",
@@ -32,6 +33,7 @@
     "react-pdf": "^10.4.1",
     "react-syntax-highlighter": "^16.1.1",
     "react-textarea-autosize": "^8.5.9",
+    "react-to-print": "^3.3.0",
     "recharts": "^3.8.0",
     "rehype-katex": "^7.0.1",
     "rehype-sanitize": "^6.0.0",
@@ -50,7 +52,6 @@
     "netlify-cli": "^24.3.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.10",
-    "vite": "^5.4.3",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite": "^5.4.3"
   }
 }

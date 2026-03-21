@@ -30,6 +30,9 @@ export async function sendMessage(message, chatHistory = [], modelId, hiddenCont
     const data = await response.json();
 
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("RATE_LIMIT");
+      }
       if (data.isModelError) {
         throw new Error("MODEL_UNAVAILABLE");
       }
@@ -47,6 +50,13 @@ export async function sendMessage(message, chatHistory = [], modelId, hiddenCont
   } catch (error) {
     console.warn("Backend Error:", error.message);
     
+    if (error.message === "RATE_LIMIT") {
+      return {
+        reply: "Oops, you're sending messages a bit too fast! Please pause for a moment to let the network cool down before sending your next request.",
+        isRateLimitError: true
+      };
+    }
+
     if (error.message === "MODEL_UNAVAILABLE") {
       return { 
         reply: "Model temporarily unavailable. Switching to default.", 

@@ -40,7 +40,7 @@ function App() {
         <Topbar />
 
         <div className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar">
-        <div id="void-chat-export" className="w-full max-w-3xl px-4 pt-8 flex-1 flex flex-col bg-white dark:bg-[#1B1B1B] transition-colors">
+        <div id="void-chat-export" className="w-full max-w-[800px] px-4 pt-8 flex-1 flex flex-col bg-white dark:bg-[#1B1B1B] transition-colors">
           <div className={`w-full flex-1 flex flex-col ${currentMessages.length > 0 ? 'pb-[180px]' : 'pb-8 md:pb-12'}`}>
             <ChatWindow
               messages={currentMessages}
@@ -50,8 +50,8 @@ function App() {
         </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 md:right-[12px] p-4 md:p-6 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-[#1b1b1b] dark:via-[#1b1b1b]/80 pointer-events-none z-10 transition-colors duration-300">
-          <div className="max-w-3xl mx-auto w-full pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 md:right-[12px] px-4 pb-2 md:px-6 md:pb-4 bg-white dark:bg-[#1B1B1B] pointer-events-none z-10 transition-colors duration-300">
+          <div className="max-w-[800px] mx-auto w-full pointer-events-auto">
             <Composer />
           </div>
         </div>

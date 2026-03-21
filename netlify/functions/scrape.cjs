@@ -16,7 +16,36 @@ export const handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'URL is required' }) };
     }
 
-    const response = await fetch(url, {
+    // SSRF (Server-Side Request Forgery) Security Barricade
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Mathematical URL parsing failed.' }) };
+    }
+    
+    // Strict Protocol Verification
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return { statusCode: 403, body: JSON.stringify({ error: 'Forbidden protocol layer intercepted.' }) };
+    }
+
+    // Strict internal subnet blocks
+    const host = parsedUrl.hostname;
+    if (
+      host === 'localhost' ||
+      host.includes('127.0.0.1') ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+      host === '169.254.169.254' // Standard AWS metadata shield
+    ) {
+      console.warn(`[SECURITY] Blocked critical SSRF probe attempt against internal architecture: ${host}`);
+      return { statusCode: 403, body: JSON.stringify({ error: 'SSRF core breach prevented. Cannot resolve internal infrastructure.' }) };
+    }
+
+    const response = await fetch(parsedUrl.toString(), {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }

@@ -4,7 +4,10 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-
+// Global Memory State for Rate Limiting (persists across warm serverless container invocations)
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
+const MAX_REQUESTS_PER_WINDOW = 15; // Strict limit: 15 queries per minute per IP
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
@@ -13,6 +16,30 @@ exports.handler = async (event, context) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Method Not Allowed" })
     };
+  }
+
+  // Security: Immediate Rate Limit Check
+  const clientIp = event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'] || 'anonymous_ip';
+  const currentTime = Date.now();
+  
+  if (!rateLimitMap.has(clientIp)) {
+    rateLimitMap.set(clientIp, { count: 1, firstRequest: currentTime });
+  } else {
+    const limitData = rateLimitMap.get(clientIp);
+    if (currentTime - limitData.firstRequest > RATE_LIMIT_WINDOW_MS) {
+      // Reset window
+      rateLimitMap.set(clientIp, { count: 1, firstRequest: currentTime });
+    } else {
+      limitData.count++;
+      if (limitData.count > MAX_REQUESTS_PER_WINDOW) {
+        console.warn(`[SECURITY] RATE LIMIT EXCEEDED. Blocked traffic flood from IP: ${clientIp}`);
+        return {
+          statusCode: 429,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "You are sending messages too fast. Please wait a minute and try again." })
+        };
+      }
+    }
   }
 
   try {
@@ -59,8 +86,7 @@ Strict rules:
 - Always respond ONLY in English.
 - Never switch to Arabic or any other language unless the user explicitly asks.
 - If the user input is short or unclear, still respond in English.
-- Keep responses clean and readable.
-- Use proper formatting and code blocks when needed.`;
+- Keep responses clean, legible, and highly structured with Markdown where helpful.`;
 
     if (hiddenContext) {
        sysContent += `\n\n${hiddenContext}`;
@@ -77,68 +103,20 @@ Strict rules:
       { role: "user", content: message }
     ];
 
-    // Master Hybrid Auto-Router
+    // Master Router: Groq Exclusive Engine
     let reply = "";
     
-    // Transparently map UI generic requests to 100% Free OpenRouter equivalent endpoints
-    let openRouterAlias = null;
-    const lowerModel = model.toLowerCase();
+    console.log(`[ROUTER] Routing via Groq Engine using: ${model}`);
     
-    if (lowerModel.includes("llama-3.3-70b") || lowerModel.includes("llama3-70b")) openRouterAlias = "meta-llama/llama-3.3-70b-instruct:free";
-    else if (lowerModel.includes("llama-3.1-8b") || lowerModel.includes("llama3-8b")) openRouterAlias = "meta-llama/llama-3-8b-instruct:free";
-    else if (lowerModel.includes("gemma")) openRouterAlias = "google/gemma-3-27b-it:free";
-    else if (lowerModel.includes("mixtral") || lowerModel.includes("mistral")) openRouterAlias = "mistralai/mistral-small-3.1-24b-instruct:free";
-    else if (lowerModel.includes("gpt-oss")) openRouterAlias = "openai/gpt-oss-120b:free";
-    else if (lowerModel.includes(":free") || lowerModel.includes("/") || lowerModel.includes("openrouter")) openRouterAlias = model; // Direct hit
+    const fallbackModel = (model || "").toLowerCase().includes("/") ? "llama-3.3-70b-versatile" : model;
     
-    let fallbackToGroq = true;
-
-    if (openRouterAlias && process.env.OPENROUTER_API_KEY) {
-      console.log(`[ROUTER] Attempting primary 100% Free Route via OpenRouter: ${openRouterAlias}`);
-      try {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://localhost:8888/",
-            "X-Title": "Nocta AI Chat"
-          },
-          body: JSON.stringify({
-            model: openRouterAlias,
-            messages: finalMessages,
-            temperature: 0.7
-          })
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          reply = data.choices[0]?.message?.content;
-          fallbackToGroq = false; // Successfully got free tokens!
-          console.log(`[ROUTER] Success! OpenRouter ${openRouterAlias} completed query.`);
-        } else {
-          const errText = await res.text();
-          console.warn(`[ROUTER FAIL] OpenRouter Rate-Limited or Offline (${res.status}): ${errText}`);
-        }
-      } catch (err) {
-        console.warn(`[ROUTER NETWORK ERROR] OpenRouter completely unreachable: ${err.message}`);
-      }
-    }
-    
-    // Auto-Failover: If OpenRouter failed, wasn't enabled, or rejected the prompt, use Groq natively
-    if (fallbackToGroq) {
-      console.log(`[ROUTER] Routing via Groq Engine for maximum stability using: ${model}`);
-      
-      const fallbackModel = lowerModel.includes("/") ? "llama-3.3-70b-versatile" : model;
-      
-      const fallbackCompletion = await groq.chat.completions.create({
-        messages: finalMessages,
-        model: fallbackModel,
-        temperature: 0.7,
-        max_tokens: 1024,
-      });
-      reply = fallbackCompletion.choices[0]?.message?.content || "I have no optimal response at this time.";
-    }
+    const fallbackCompletion = await groq.chat.completions.create({
+      messages: finalMessages,
+      model: fallbackModel,
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+    reply = fallbackCompletion.choices[0]?.message?.content || "I have no optimal response at this time.";
 
     return {
       statusCode: 200,

@@ -17,8 +17,8 @@ import { cn } from '../lib/utils';
 const LENGTH_MODES = ['Auto', 'Snapshot', 'Concise', 'In-Depth'];
 
 const Composer = () => {
-  const { sendChatMessage: onSend, isTyping, localAiStatus, localAiProgress, initLocalModel, selectedModel } = useAppStore();
-  const disabled = isTyping || localAiStatus === 'loading';
+  const { sendChatMessage: onSend, isTyping, selectedModel } = useAppStore();
+  const disabled = isTyping;
   const [text, setText] = useState('');
   const [outputLength, setOutputLength] = useState('Auto');
   const [isLengthMenuOpen, setIsLengthMenuOpen] = useState(false);
@@ -33,7 +33,7 @@ const Composer = () => {
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
-  
+
   const [attachedFile, setAttachedFile] = useState(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -48,8 +48,8 @@ const Composer = () => {
   const parseFile = useCallback(async (file) => {
     if (!file) return;
 
-    // Hardened strict whitelist to physically block all OS-level directories and unknown binaries natively.
-    const validExtensions = ['.pdf', '.txt', '.csv', '.md', '.json', '.xlsx', '.xls'];
+    // Hardened strict whitelist to physically block everything except explicitly permitted PDFs natively.
+    const validExtensions = ['.pdf'];
     const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
     if (!hasValidExt) {
       toast.error('Unsupported file format or structural folder detected.', { icon: '🛡️' });
@@ -62,7 +62,7 @@ const Composer = () => {
     }
 
     setIsParsing(true);
-    const toastId = toast.loading(`Parsing ${file.name} locally...`);
+    const toastId = toast.loading(`Attaching document...`);
 
     try {
       let extractedText = '';
@@ -71,7 +71,7 @@ const Composer = () => {
         extractedText = await extractTextFromPDF(file);
         // Estimate pages visually based on ~2000 chars per page
         const approxPages = Math.ceil(extractedText.length / 2000) || 1;
-        toast.success(`Extracted ~${approxPages} pages from ${file.name} successfully!`, { id: toastId });
+        toast.success(`Attached ${file.name} (~${approxPages} pages)`, { id: toastId });
       } else if (file.name.endsWith('.csv') || file.type === 'text/csv') {
         extractedText = await new Promise((resolve, reject) => {
           Papa.parse(file, {
@@ -80,7 +80,7 @@ const Composer = () => {
             error: (e) => reject(e)
           });
         });
-        toast.success(`Spreadsheet ${file.name} parsed!`, { id: toastId });
+        toast.success(`Attached ${file.name}`, { id: toastId });
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type.includes('spreadsheetml')) {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -93,13 +93,15 @@ const Composer = () => {
           }
         });
         extractedText = `[Excel Workbook Data]\n${allSheetsData.join('\n\n')}`;
-        toast.success(`Workbook ${file.name} parsed!`, { id: toastId });
+        toast.success(`Attached ${file.name}`, { id: toastId });
       } else {
         extractedText = await file.text();
         toast.success(`${file.name} attached!`, { id: toastId });
       }
 
       setAttachedFile({ name: file.name, text: extractedText, type: file.type, rawFile: file });
+      // Instantly aggressively return geometric focus to the text input so typing flow is unbroken!
+      setTimeout(() => textareaRef.current?.focus(), 50);
     } catch (error) {
       console.error('Parse Error:', error);
       toast.error(`Failed to parse ${file.name}.`, { id: toastId });
@@ -149,22 +151,22 @@ const Composer = () => {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
+
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
           const base64data = reader.result.split(',')[1];
-          
+
           setIsProcessingVoice(true);
           const toastId = toast.loading("Whisper AI translating audio...");
-          
+
           try {
             const res = await fetch('/.netlify/functions/transcribe', {
               method: 'POST',
               body: JSON.stringify({ audioBase64: base64data })
             });
             const data = await res.json();
-            
+
             if (data.text) {
               setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
               toast.dismiss(toastId);
@@ -218,21 +220,15 @@ const Composer = () => {
     }
   };
 
-  // Trigger hardware model download when selected
-  useEffect(() => {
-    if (selectedModel && selectedModel.includes('-MLC')) {
-      initLocalModel(selectedModel);
-    }
-  }, [selectedModel, initLocalModel]);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (isRecording) {
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
-      return; 
+      return;
     }
-    
+
     if (text.trim() || attachedFile) {
       if (!disabled && !isProcessingVoice && !isParsing) {
         let finalText = text.trim();
@@ -260,46 +256,18 @@ const Composer = () => {
               }
             }
           } catch (e) {
-             // Silently ignore network failures to ensure the chat still sends
-             console.log("Wikipedia fetch bypassed:", e);
-          } finally {
-             setIsParsing(false);
-          }
-        }
-        // --- END WIKIPEDIA ROUTER ---
-        
-        // Priority detection: Check for YouTube URLs first to intercept heavy video matrices natively
-        const ytMatch = finalText.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-        const urlMatch = finalText.match(/(https?:\/\/[^\s]+)/);
-
-        if (ytMatch && ytMatch[0]) {
-          setIsParsing(true);
-          const ytUrl = ytMatch[0].startsWith('http') ? ytMatch[0] : `https://${ytMatch[0]}`;
-          const toastId = toast.loading('Extracting YouTube Transcripts autonomously...');
-          try {
-            const res = await fetch(`/.netlify/functions/youtube`, {
-              method: 'POST',
-              body: JSON.stringify({ url: ytUrl })
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              if (data.transcript) {
-                hiddenContext += `[SYSTEM BACKGROUND DATA: The user pasted a YouTube video link. Here is the EXACT word-for-word encrypted transcript of the video. Use this to explicitly answer their questions without hallucination:]\n\n${data.transcript}\n\n`;
-                toast.success('YouTube Video perfectly memorized!', { id: toastId });
-              } else {
-                toast.error('Failed to parse empty YouTube captions.', { id: toastId });
-              }
-            } else {
-              const errData = await res.json().catch(() => ({}));
-              toast.error(errData.error || 'Could not securely extract closed captions from this video hash.', { id: toastId });
-            }
-          } catch (e) {
-            toast.error('Network error reaching the YouTube extraction bridge.', { id: toastId });
+            // Silently ignore network failures to ensure the chat still sends
+            console.log("Wikipedia fetch bypassed:", e);
           } finally {
             setIsParsing(false);
           }
-        } else if (urlMatch) {
+        }
+        // --- END WIKIPEDIA ROUTER ---
+
+        // Basic web crawler hook for generic links
+        const urlMatch = finalText.match(/(https?:\/\/[^\s]+)/);
+
+        if (urlMatch) {
           setIsParsing(true);
           const toastId = toast.loading(`Scraping website: ${urlMatch[0]}...`);
           try {
@@ -322,14 +290,11 @@ const Composer = () => {
 
         if (attachedFile) {
           setIsParsing(true);
-          const toastId = toast.loading(`Memorizing Document into Vector Store: ${attachedFile.name}...`);
           try {
             await RAGSystem.addDocument(attachedFile.name, attachedFile.text);
             hiddenContext += `[User Attached Document: ${attachedFile.name}]\n\n${attachedFile.text}\n\n`;
-            toast.success(`Embedded ${attachedFile.name} into Local Memory!`, { id: toastId });
-          } catch(e) {
+          } catch (e) {
             console.error("RAG Embedding Error:", e);
-            toast.error("Failed to vectorize document memory.", { id: toastId });
             hiddenContext += `[User Attached Document: ${attachedFile.name}]\n\n${attachedFile.text}\n\n`;
           } finally {
             setIsParsing(false);
@@ -338,24 +303,24 @@ const Composer = () => {
 
         // Before sending, ALWAYS search the vector DB for context if there is a real question and NO attached file
         if (finalText.trim() && !attachedFile) {
-           setIsParsing(true);
-           try {
-              // Pull top 2 matches to prevent context bloat
-              const relevantChunks = await RAGSystem.search(finalText, 2);
-              // Only inject if similarity score is somewhat relevant
-              const highConfidenceChunks = relevantChunks.filter(c => c.score > 0.3);
-              
-              if (highConfidenceChunks.length > 0) {
-                 const memories = highConfidenceChunks.map(c => `From Document '${c.filename}': ${c.text}`).join('\n\n');
-                 hiddenContext += `[Retrieved Previous Memories Context]\n${memories}\n\n`;
-              }
-           } catch(e) {
-              console.log("RAG Semantic Search bypassed:", e);
-           } finally {
-              setIsParsing(false);
-           }
+          setIsParsing(true);
+          try {
+            // Pull top 2 matches to prevent context bloat
+            const relevantChunks = await RAGSystem.search(finalText, 2);
+            // Only inject if similarity score is somewhat relevant
+            const highConfidenceChunks = relevantChunks.filter(c => c.score > 0.3);
+
+            if (highConfidenceChunks.length > 0) {
+              const memories = highConfidenceChunks.map(c => `From Document '${c.filename}': ${c.text}`).join('\n\n');
+              hiddenContext += `[Retrieved Previous Memories Context]\n${memories}\n\n`;
+            }
+          } catch (e) {
+            console.log("RAG Semantic Search bypassed:", e);
+          } finally {
+            setIsParsing(false);
+          }
         }
-        
+
         onSend(finalText, hiddenContext.trim() ? hiddenContext.trim() : null, outputLength);
         setText('');
         setAttachedFile(null);
@@ -365,226 +330,178 @@ const Composer = () => {
 
   return (
     <>
-    <div className="w-full flex flex-col gap-2 relative" {...getRootProps()}>
+      <div className="w-full flex flex-col gap-2 relative" {...getRootProps()}>
 
-      {/* Full-screen drag-over overlay */}
-      {isDragActive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
-          <div className="flex flex-col items-center gap-4 text-white">
-            <Upload className="w-16 h-16 text-blue-400 animate-bounce" />
-            <p className="text-2xl font-bold tracking-tight">Drop to Attach Document</p>
-            <p className="text-sm text-zinc-400">PDF, Excel, CSV, TXT supported</p>
+        {/* Full-screen drag-over overlay */}
+        {isDragActive && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
+            <div className="flex flex-col items-center gap-4 text-white">
+              <Upload className="w-16 h-16 text-blue-400 animate-bounce" />
+              <p className="text-2xl font-bold tracking-tight">Drop to Attach Document</p>
+              <p className="text-sm text-zinc-400">PDF, Excel, CSV, TXT supported</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="relative flex flex-col gap-2 pl-4 pr-3 py-2.5 md:pl-5 md:pr-4 md:py-3 bg-zinc-100 dark:bg-[#2A2A2A] rounded-3xl transition-colors dark:border dark:border-white/[0.04] shadow-sm">
-        
-        <input {...getInputProps()} className="hidden" />
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={(e) => { if (e.target.files[0]) parseFile(e.target.files[0]); e.target.value=''; }}
-          className="hidden" 
-          accept=".pdf,.txt,.csv,.md,.json,.xlsx,.xls" 
-        />
+        <div className="relative flex flex-col gap-2 pl-4 pr-3 py-2.5 md:pl-5 md:pr-4 md:py-3 bg-zinc-100 dark:bg-[#2A2A2A] rounded-3xl transition-colors border border-transparent">
 
-        {attachedFile && (
-          <div className="flex items-center gap-2 pl-3 pr-2 py-1.5 mb-1 bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-xl self-start max-w-full shadow-sm">
-            <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-            <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[150px] md:max-w-[260px]">
-              {attachedFile.name}
-            </span>
-            {attachedFile.rawFile && attachedFile.type === 'application/pdf' && (
+          <input {...getInputProps()} className="hidden" />
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => { if (e.target.files[0]) parseFile(e.target.files[0]); e.target.value = ''; }}
+            className="hidden"
+            accept=".pdf,.txt,.csv,.md,.json,.xlsx,.xls"
+          />
+
+          {attachedFile && (
+            <div className="flex items-center gap-2 pl-3 pr-2 py-1.5 mb-1 bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-xl self-start max-w-full shadow-sm">
+              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[150px] md:max-w-[260px]">
+                {attachedFile.name}
+              </span>
+              {attachedFile.rawFile && attachedFile.type === 'application/pdf' && (
+                <button
+                  onClick={() => setIsPDFPreviewOpen(true)}
+                  className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 transition-colors"
+                  title="Preview PDF"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
-                onClick={() => setIsPDFPreviewOpen(true)}
-                className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 transition-colors"
-                title="Preview PDF"
+                className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
               >
-                <Eye className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" />
               </button>
-            )}
-            <button 
-              onClick={() => { setAttachedFile(null); setIsPDFPreviewOpen(false); }}
-              className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            </div>
+          )}
+
+          {/* Input Row */}
+          <div className="flex items-end gap-2.5 w-full">
+            <TextareaAutosize
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isRecording ? "Recording your voice..." : "Message VOID..."}
+              disabled={disabled || isProcessingVoice}
+              maxRows={10}
+              minRows={1}
+              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 min-h-[36px]"
+            />
+
+            <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
+              <button
+                onClick={toggleListening}
+                disabled={disabled || isProcessingVoice}
+                className={cn(
+                  "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
+                  isRecording
+                    ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20"
+                    : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
+                )}
+                title="Dictate message using Whisper AI"
+              >
+                <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
+              </button>
+
+              <button
+                onClick={handleSubmit}
+                disabled={!(text.trim() || attachedFile) || disabled || isRecording || isProcessingVoice || isParsing}
+                className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent
+                bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400
+                dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
+              >
+                <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+
+          {/* Toolbar Row */}
+          <div className="w-full flex items-center justify-between pt-1 pb-0.5">
+            <div className="flex items-center gap-2">
+              <button
+                ref={attachToggleRef}
+                onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
+                disabled={disabled || isProcessingVoice || isParsing}
+                className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
+                    ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
+                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
+                  } disabled:opacity-50`}
+              >
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+              </button>
+
+              <button
+                ref={toggleRef}
+                onClick={() => setIsLengthMenuOpen(!isLengthMenuOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-semibold tracking-wide transition-colors ${outputLength !== 'Auto' || isLengthMenuOpen
+                    ? 'bg-zinc-200 text-zinc-800 dark:bg-white/10 dark:text-zinc-200'
+                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
+                  }`}
+              >
+                <AlignLeft className="w-3.5 h-3.5 opacity-80" />
+                <span>{outputLength}</span>
+                <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${isLengthMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Attach Popover Menu */}
+        {isAttachMenuOpen && (
+          <div
+            ref={attachMenuRef}
+            className="absolute left-2 bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
+          >
+            <button
+              onClick={() => { fileInputRef.current?.click(); setIsAttachMenuOpen(false); }}
+              className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
             >
-              <X className="w-3.5 h-3.5" />
+              <Paperclip className="w-3.5 h-3.5 shrink-0" />
+              <span>Upload files</span>
             </button>
           </div>
         )}
 
-        <AnimatePresence>
-          {localAiStatus === 'loading' && localAiProgress && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="px-2 pb-2"
-            >
-              <div className="flex flex-col w-full text-xs font-semibold text-blue-500 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/20 shadow-sm overflow-hidden">
-                <div className="flex flex-col relative px-3 py-2 z-10 w-full">
-                  <div className="flex items-center justify-between w-full">
-                    <span className="whitespace-normal break-words pr-4 flex-1 leading-snug">
-                      {typeof localAiProgress === 'object' ? localAiProgress.text : localAiProgress}
-                    </span>
-                    <div className="shrink-0 flex items-center gap-2">
-                      {typeof localAiProgress === 'object' && localAiProgress.percent > 0 && (
-                        <span className="font-bold text-blue-600 dark:text-blue-300">{localAiProgress.percent}%</span>
-                      )}
-                      <span className="flex items-center gap-1 opacity-80 border-r border-blue-200 dark:border-blue-500/30 pr-2 mr-1"><Cpu className="w-3.5 h-3.5 animate-pulse" /> HW-Acceleration</span>
-                      <button 
-                        onClick={() => useAppStore.getState().cancelLocalModel()}
-                        className="flex items-center justify-center p-0.5 rounded-md hover:bg-blue-200/50 dark:hover:bg-white/10 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
-                        title="Cancel Download"
-                      >
-                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Graphical Progress Bar Track */}
-                  {typeof localAiProgress === 'object' && localAiProgress.percent > 0 && (
-                    <div className="w-full h-1.5 bg-blue-200/50 dark:bg-blue-900/30 rounded-full mt-2.5 overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-300 ease-out" 
-                          style={{ width: `${localAiProgress.percent}%` }}
-                        />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Input Row */}
-        <div className="flex items-end gap-2.5 w-full">
-          <TextareaAutosize
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isRecording ? "Recording your voice..." : "Message VOID..."}
-            disabled={disabled || isProcessingVoice}
-            maxRows={10}
-            minRows={1}
-            className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 min-h-[36px]"
-          />
-
-          <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
-            <button
-              onClick={toggleListening}
-              disabled={disabled || isProcessingVoice}
-              className={cn(
-                "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
-                isRecording 
-                  ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20" 
-                  : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
-              )}
-              title="Dictate message using Whisper AI"
-            >
-              <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
-            </button>
-
-            <button
-              onClick={handleSubmit}
-              disabled={!(text.trim() || attachedFile) || disabled || isRecording || isProcessingVoice || isParsing}
-              className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent
-                bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400
-                dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
-            >
-              <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
-            </button>
-          </div>
-        </div>
-
-        {/* Toolbar Row */}
-        <div className="w-full flex items-center justify-between pt-1 pb-0.5">
-          <div className="flex items-center gap-2">
-            <button
-              ref={attachToggleRef}
-              onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
-              disabled={disabled || isProcessingVoice || isParsing}
-              className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
-                isAttachMenuOpen 
-                  ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white' 
-                  : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
-              } disabled:opacity-50`}
-            >
-              <Plus className="w-4 h-4" strokeWidth={2.5} />
-            </button>
-
-            <button
-              ref={toggleRef}
-              onClick={() => setIsLengthMenuOpen(!isLengthMenuOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-semibold tracking-wide transition-colors ${
-                outputLength !== 'Auto' || isLengthMenuOpen
-                  ? 'bg-zinc-200 text-zinc-800 dark:bg-white/10 dark:text-zinc-200' 
-                  : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
-              }`}
-            >
-              <AlignLeft className="w-3.5 h-3.5 opacity-80" />
-              <span>{outputLength}</span>
-              <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${isLengthMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Attach Popover Menu */}
-      {isAttachMenuOpen && (
-        <div
-          ref={attachMenuRef}
-          className="absolute left-2 bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
-        >
-          <button
-            onClick={() => { fileInputRef.current?.click(); setIsAttachMenuOpen(false); }}
-            className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+        {/* Length Popover Menu */}
+        {isLengthMenuOpen && (
+          <div
+            ref={menuRef}
+            className="absolute left-[44px] bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
           >
-            <Paperclip className="w-3.5 h-3.5 shrink-0" />
-            <span>Upload files</span>
-          </button>
-        </div>
-      )}
-
-      {/* Length Popover Menu */}
-      {isLengthMenuOpen && (
-        <div
-          ref={menuRef}
-          className="absolute left-[44px] bottom-[calc(100%+8px)] w-[160px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
-        >
-          <div className="px-2 pb-1.5 pt-1 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">RESPONSE LENGTH</div>
-          <div className="flex flex-col gap-0.5">
-            {LENGTH_MODES.map((mode) => (
-              <button
-                key={mode}
-                onClick={() => { setOutputLength(mode); setIsLengthMenuOpen(false); }}
-                className={`flex items-center justify-between px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group ${
-                  outputLength === mode 
-                    ? 'text-zinc-900 bg-zinc-100 dark:text-white dark:bg-white/10' 
-                    : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10'
-                }`}
-              >
-                <span>{mode}</span>
-                {outputLength === mode && <Check className="w-[14px] h-[14px] shrink-0 text-zinc-700 dark:text-zinc-300" />}
-              </button>
-            ))}
+            <div className="px-2 pb-1.5 pt-1 text-[11px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wider">RESPONSE LENGTH</div>
+            <div className="flex flex-col gap-0.5">
+              {LENGTH_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => { setOutputLength(mode); setIsLengthMenuOpen(false); }}
+                  className={`flex items-center justify-between px-2.5 py-2 text-[13px] font-[500] rounded-md transition-colors text-left w-full group ${outputLength === mode
+                      ? 'text-zinc-900 bg-zinc-100 dark:text-white dark:bg-white/10'
+                      : 'text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10'
+                    }`}
+                >
+                  <span>{mode}</span>
+                  {outputLength === mode && <Check className="w-[14px] h-[14px] shrink-0 text-zinc-700 dark:text-zinc-300" />}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+        <div className="text-center text-xs text-zinc-500 dark:text-zinc-500 tracking-wide mt-1">
+          VOID can make mistakes. Remember to verify critical information.
         </div>
-      )}
-      <div className="text-center text-xs text-zinc-500 dark:text-zinc-500 tracking-wide mt-1">
-        VOID can make mistakes. Remember to verify critical information.
       </div>
-    </div>
 
-    {isPDFPreviewOpen && attachedFile?.rawFile && (
-      <PDFPreview
-        file={attachedFile}
-        onClose={() => setIsPDFPreviewOpen(false)}
-      />
-    )}
-    </>  
+      {isPDFPreviewOpen && attachedFile?.rawFile && (
+        <PDFPreview
+          file={attachedFile}
+          onClose={() => setIsPDFPreviewOpen(false)}
+        />
+      )}
+    </>
   );
 };
 

@@ -1,38 +1,33 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Sparkles, Zap, Brain, Globe, FlaskConical, ShieldAlert, Cpu } from 'lucide-react';
-import { LOCAL_MODELS } from '../lib/models';
-
 const enrichModelData = (modelId, modelName) => {
-  const id = modelId.toLowerCase();
-
-  if (id.includes('-mlc')) {
-    return { group: 'Hardware-Accelerated Local AI', title: modelName.split('(')[0].trim(), description: '100% Free & Offline. Runs completely on your device via WebGPU.', badge: 'Local', Icon: Cpu };
-  }
+  if (!modelId) return null;
+  const id = String(modelId).toLowerCase();
 
   if (id.includes('llama-3.3-70b') || id.includes('llama3-70b') || id.includes('llama-3.3')) {
-    return { group: 'Recommended', title: modelName, description: 'Balanced, high-quality responses for everyday use.', badge: 'Best', Icon: Sparkles };
+    return { group: 'Recommended', title: 'VOID Core', description: 'Balanced, high-quality responses for everyday use.', badge: 'Best', Icon: Sparkles };
   }
   if (id.includes('llama-3.1-8b') || id.includes('llama-3-8b') || id.includes('mistral') || id.includes('gemma')) {
-    return { group: 'Fast', title: modelName, description: 'Quick responses for lighter tasks.', badge: null, Icon: Zap };
+    return { group: 'Fast', title: 'VOID Flash', description: 'Instant responses for lighter tasks.', badge: null, Icon: Zap };
   }
   if (id.includes('deepseek') || id.includes('120b') || id.includes('reasoning') || id.includes('gpt-oss')) {
-    return { group: 'Reasoning', title: modelName || 'Deep Thinker', description: 'Stronger reasoning for coding and complex prompts.', badge: null, Icon: Brain };
+    return { group: 'Reasoning', title: 'VOID Deep', description: 'Advanced logic and rigorous analytical reasoning.', badge: 'Pro', Icon: Brain };
   }
   if (id.includes('allam') || id.includes('arabic')) {
-    return { group: 'Multilingual', title: modelName || 'Global Arabic', description: 'Optimized for Arabic and multilingual prompts.', badge: 'Arabic', Icon: Globe };
+    return { group: 'Multilingual', title: 'VOID Global', description: 'Optimized for Arabic and vast multilingual prompts.', badge: 'Arabic', Icon: Globe };
   }
   if (id.includes('qwen') || id.includes('mixtral')) {
-    return { group: 'Multilingual', title: modelName || 'Global', description: 'Strong multilingual support across general tasks.', badge: null, Icon: Globe };
+    return { group: 'Multilingual', title: 'VOID Global', description: 'Strong multilingual support across general tasks.', badge: null, Icon: Globe };
   }
   if (id.includes('prompt-guard') || id.includes('safety') || id.includes('safeguard')) {
-    return { group: 'Experimental', title: modelName || 'Safety Core', description: 'Evaluates prompt security boundaries.', badge: null, Icon: ShieldAlert };
+    return { group: 'Experimental', title: 'VOID Shield', description: 'Evaluates prompt security boundaries.', badge: 'Beta', Icon: ShieldAlert };
   }
   if (id.includes('compound') || id.includes('agent')) {
-    return { group: 'Experimental', title: modelName || 'Agentic Core', description: 'Tool-use and autonomous routing.', badge: null, Icon: Cpu };
+    return { group: 'Experimental', title: 'VOID Agent', description: 'Autonomous multi-step tool utilization.', badge: 'Beta', Icon: Cpu };
   }
 
-  return { group: 'Experimental', title: modelName, description: 'General purpose LLM.', badge: null, Icon: FlaskConical };
+  return { group: 'Experimental', title: modelName, description: 'External general purpose LLM endpoint.', badge: null, Icon: FlaskConical };
 };
 
 const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled }) => {
@@ -49,45 +44,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const [gpuStatus, setGpuStatus] = useState({ supported: false, maxSafeVram: 0 });
-
-  useEffect(() => {
-    const checkGpu = async () => {
-      if (!navigator.gpu) {
-        setGpuStatus({ supported: false, maxSafeVram: 0 });
-        return;
-      }
-      try {
-        const adapter = await navigator.gpu.requestAdapter();
-        if (!adapter) {
-          setGpuStatus({ supported: false, maxSafeVram: 0 });
-          return;
-        }
-        
-        // Use deviceMemory API (returns GB) to build a robust unified architecture proxy
-        const systemRam = navigator.deviceMemory || 4; // Assume 4GB baseline if API is blocked by privacy
-        let maxSafeVram = 1;
-        
-        if (systemRam > 8) maxSafeVram = 6; // 16GB+ systems easily handle massive local LLMs 
-        else if (systemRam >= 8) maxSafeVram = 3; // 8GB systems handle ~3GB safely
-        else if (systemRam >= 4) maxSafeVram = 1.5; // 4GB systems handle ~1.5GB cleanly
-        else maxSafeVram = 0.5; // Minimum spec handles absolute micro models only
-        
-        // Also strictly obey hardware pipeline max buffer limits natively 
-        const maxBuffer = adapter.limits?.maxStorageBufferBindingSize || Infinity;
-        if (maxBuffer < 2147483648 && maxSafeVram > 2) {
-          maxSafeVram = 2; // Hard cap if the specific graphical engine restricts buffer sizes
-        }
-
-        setGpuStatus({ supported: true, maxSafeVram });
-      } catch (e) {
-         setGpuStatus({ supported: false, maxSafeVram: 0 });
-      }
-    };
-    checkGpu();
-  }, []);
-
-  const allModels = [...availableModels, ...LOCAL_MODELS];
+  const allModels = [...availableModels];
   const activeModel = allModels.find(m => m.id === selectedModel);
   const activeParams = activeModel ? enrichModelData(activeModel.id, activeModel.name) : enrichModelData(selectedModel, selectedModel);
   const ActiveIcon = activeParams?.Icon || Sparkles;
@@ -101,7 +58,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
     });
 
     // Sort logic to enforce logical bucket rendering visually
-    const order = ['Recommended', 'Fast', 'Reasoning', 'Hardware-Accelerated Local AI', 'Multilingual', 'Experimental'];
+    const order = ['Recommended', 'Fast', 'Reasoning', 'Multilingual', 'Experimental'];
     return order.map(groupName => ({
       groupName,
       models: groups[groupName] || []
@@ -154,55 +111,33 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
                       {group.models.map(m => {
                         const MIcon = m.Icon;
                         const isSelected = selectedModel === m.id;
-                        const isWebLLM = m.id.includes('-MLC');
-                        
-                        let isDisabled = false;
-                        let disableReason = null;
-
-                        if (isWebLLM) {
-                          if (!gpuStatus.supported) {
-                            isDisabled = true;
-                            disableReason = 'WebGPU strictly required natively.';
-                          } else if (m.vramWarning > gpuStatus.maxSafeVram) {
-                            isDisabled = true;
-                            disableReason = `Requires ~${m.vramWarning}GB VRAM (Your Safe Limit: ${gpuStatus.maxSafeVram}GB)`;
-                          }
-                        }
 
                         return (
                           <button
                             key={m.id}
-                          disabled={isDisabled}
-                          title={disableReason}
                             onClick={() => {
-                              if (!isDisabled) {
                                 onModelChange(m.id);
-                                if (!isWebLLM) {
-                                  // Important: Force clear any background progress UIs if they jump to a cloud model mid-download
-                                  import('../store/useAppStore').then(module => module.useAppStore.getState().cancelLocalModel(m.id));
-                                }
                                 setIsOpen(false);
-                              }
                             }}
-                          className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${isDisabled ? 'opacity-40 cursor-not-allowed bg-transparent' : isSelected
+                          className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left group/item shrink-0 ${isSelected
                               ? 'bg-blue-50/50 dark:bg-blue-500/10 cursor-pointer'
                               : 'hover:bg-zinc-50 dark:hover:bg-white/5 cursor-pointer'
                             }`}
                         >
-                          <MIcon className={`w-[18px] h-[18px] mt-0.5 shrink-0 ${isDisabled ? 'text-zinc-400 dark:text-zinc-600' : isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400 group-hover/item:text-zinc-900 dark:group-hover/item:text-zinc-200'}`} />
+                          <MIcon className={`w-[18px] h-[18px] mt-0.5 shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400 group-hover/item:text-zinc-900 dark:group-hover/item:text-zinc-200'}`} />
                           <div className="flex flex-col flex-1 min-w-0 pr-2 pb-0.5">
                             <div className="flex items-center gap-2 mb-0.5 shrink-0">
-                              <span className={`text-[14px] font-semibold tracking-tight truncate ${isDisabled ? 'text-zinc-500 dark:text-zinc-500' : isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                              <span className={`text-[14px] font-semibold tracking-tight truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-900 dark:text-zinc-100'}`}>
                                 {m.title}
                               </span>
                               {m.badge && (
-                                <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${isDisabled ? 'bg-zinc-100 text-zinc-400 dark:bg-white/5 dark:text-zinc-600' : isSelected ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
+                                <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider ${isSelected ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
                                   {m.badge}
                                 </span>
                               )}
                             </div>
-                            <span className={`text-[12px] font-medium whitespace-normal leading-snug break-words ${isDisabled ? 'text-zinc-400 dark:text-zinc-600' : isSelected ? 'text-blue-600/80 dark:text-blue-400/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                              {isDisabled && disableReason ? disableReason : `${m.name} • ${m.description}`}
+                            <span className={`text-[12px] font-medium whitespace-normal leading-snug break-words ${isSelected ? 'text-blue-600/80 dark:text-blue-400/80' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                              {`${m.name} • ${m.description}`}
                             </span>
                           </div>
                         </button>

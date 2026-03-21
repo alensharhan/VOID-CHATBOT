@@ -126,23 +126,29 @@ const Sidebar = () => {
       </AnimatePresence>
 
       <div className={`
-        absolute md:relative top-0 left-0 h-full bg-[#111111] border-r-0 border-transparent z-50 transition-all duration-300 ease-in-out flex flex-col overflow-hidden shrink-0
-        ${isOpen ? 'w-[280px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0'}
+        absolute md:relative top-0 left-0 h-full bg-[#111111] border-r border-transparent dark:border-white/[0.04] z-[60] transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] shrink-0
+        ${isOpen ? 'w-[280px] translate-x-0' : 'w-0 md:w-[68px] -translate-x-full md:translate-x-0'}
       `}>
-        <div className="w-[280px] min-w-[280px] h-full flex flex-col">
-          <div className="h-14 flex items-center justify-between px-5 shrink-0 border-b border-transparent">
+        {/* EXPANDED STATE (INTERNAL CLIPPING MASK) */}
+        <div className={`absolute top-0 left-0 h-full overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${isOpen ? 'w-[280px] opacity-100 pointer-events-auto delay-100' : 'w-0 md:w-[68px] opacity-0 pointer-events-none'}`}>
+          <div className="w-[280px] min-w-[280px] h-full flex flex-col">
+            <div className="h-14 flex items-center justify-between px-5 shrink-0 border-b border-transparent">
             <div className="flex items-center gap-2.5 text-zinc-900 dark:text-zinc-100">
               <Infinity className="w-5 h-5" />
               <span className="font-semibold text-base tracking-wide">VOID</span>
             </div>
             <div className="flex items-center">
-              <button
-                onClick={onClose}
-                className="hidden md:flex p-2 -mr-2 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg transition-colors"
-                title="Close Sidebar"
-              >
-                <PanelLeft className="w-5 h-5" />
-              </button>
+              <div className="relative group/tt hidden md:flex">
+                <button
+                  onClick={onClose}
+                  className="p-2 -mr-2 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <PanelLeft className="w-5 h-5" />
+                </button>
+                <div className="absolute right-0 top-[calc(100%+6px)] opacity-0 group-hover/tt:opacity-100 group-hover/tt:translate-y-1 transition-all duration-200 pointer-events-none z-[100] flex items-center px-2.5 py-1.5 bg-[#1B1B1B] border border-white/10 rounded-lg shadow-xl whitespace-nowrap">
+                  <span className="text-[12.5px] font-medium text-zinc-200">Close Sidebar</span>
+                </div>
+              </div>
               <button onClick={onClose} className="md:hidden p-2 -mr-2 text-zinc-500 hover:text-zinc-200 transition-colors">
                 <X className="w-5 h-5" />
               </button>
@@ -350,6 +356,63 @@ const Sidebar = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+        </div>
+        </div>
+
+        {/* COLLAPSED RAIL STATE (DESKTOP ONLY) */}
+        <div className={`hidden md:flex absolute top-0 left-0 flex-col items-center w-[68px] h-full pt-3 pb-4 transition-opacity duration-300 z-[70] ${!isOpen ? 'opacity-100 pointer-events-auto delay-100' : 'opacity-0 pointer-events-none'}`}>
+          
+          {/* Morphing Brand/Expand Button */}
+          <div className="relative group/tt mb-6 mt-0.5">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 transition-colors group/btn overflow-hidden"
+            >
+              <Infinity className="absolute w-[26px] h-[26px] text-zinc-100 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover/btn:opacity-0 group-hover/btn:scale-[0.3] group-hover/btn:-rotate-90 pointer-events-none" />
+              <PanelLeft className="absolute w-[22px] h-[22px] text-zinc-300 opacity-0 scale-[0.3] rotate-90 transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover/btn:opacity-100 group-hover/btn:scale-100 group-hover/btn:rotate-0 pointer-events-none" />
+            </button>
+            <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 opacity-0 group-hover/tt:opacity-100 group-hover/tt:translate-x-1 transition-all duration-200 pointer-events-none z-[100] flex items-center px-2.5 py-1.5 bg-[#1B1B1B] border border-white/10 rounded-lg shadow-xl whitespace-nowrap">
+              <span className="text-[12.5px] font-medium text-zinc-200">Expand Sidebar</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 flex-1 items-center w-full">
+            <div className="relative group/tt">
+              <button
+                onClick={onNewChat}
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors group"
+              >
+                <SquarePen className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              </button>
+              <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 opacity-0 group-hover/tt:opacity-100 group-hover/tt:translate-x-1 transition-all duration-200 pointer-events-none z-[100] flex items-center px-2.5 py-1.5 bg-[#1B1B1B] border border-white/10 rounded-lg shadow-xl whitespace-nowrap">
+                <span className="text-[12.5px] font-medium text-zinc-200">New Chat</span>
+              </div>
+            </div>
+            
+            <div className="relative group/tt">
+              <button
+                onClick={() => { setIsSidebarOpen(true); setTimeout(() => setIsSearching(true), 50); }}
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors group"
+              >
+                <Search className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              </button>
+              <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 opacity-0 group-hover/tt:opacity-100 group-hover/tt:translate-x-1 transition-all duration-200 pointer-events-none z-[100] flex items-center gap-2 px-2.5 py-1.5 bg-[#1B1B1B] border border-white/10 rounded-lg shadow-xl whitespace-nowrap">
+                <span className="text-[12.5px] font-medium text-zinc-200">Search Workspace</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group/tt mt-auto shrink-0">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors"
+            >
+              <Zap className="w-[18px] h-[18px]" />
+            </button>
+            <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 opacity-0 group-hover/tt:opacity-100 group-hover/tt:translate-x-1 transition-all duration-200 pointer-events-none z-[100] flex items-center gap-2 px-2.5 py-1.5 bg-[#1B1B1B] border border-white/10 rounded-lg shadow-xl whitespace-nowrap">
+              <span className="text-[12.5px] font-medium text-zinc-200">Settings</span>
+            </div>
           </div>
         </div>
       </div>

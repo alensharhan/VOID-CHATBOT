@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { sendMessage } from '../lib/chatApi';
-import { localAi } from '../lib/localAiEngine';
 import { nanoid } from 'nanoid';
 import { get, set, del } from 'idb-keyval';
 
@@ -25,8 +24,6 @@ export const useAppStore = create(
       availableModels: [],
       isLoadingModels: true,
       isTyping: false,
-      localAiStatus: 'idle', // idle, loading, ready, error
-      localAiProgress: '',
 
       // Actions
       setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
@@ -101,74 +98,6 @@ export const useAppStore = create(
         chats: state.chats.map(c => c.id === chatId ? { ...c, projectId } : c)
       })),
 
-      initLocalModel: async (modelId) => {
-        set({ localAiStatus: 'loading', localAiProgress: { text: 'Initializing hardware check...', percent: 0 } });
-        try {
-          const progressCallback = (report) => {
-            let percent = 0;
-            let cleanText = "Loading Engine...";
-
-            if (report.status !== undefined && report.name !== undefined) {
-              // Transformers.js
-              percent = report.progress ? Math.round(report.progress) : 0;
-              if (report.status === 'downloading') {
-                 cleanText = `Downloading Weights: ${report.name.split('/').pop() || 'Component'}...`;
-              } else if (report.status === 'ready') {
-                 cleanText = 'Component Ready.';
-              } else {
-                 cleanText = `Processing: ${report.status}`;
-              }
-            } else {
-              // WebLLM
-              const rawText = report.text || '';
-              percent = report.progress ? Math.round(report.progress * 100) : 0;
-              
-              if (rawText.includes('Fetching param cache')) {
-                const mbMatch = rawText.match(/([0-9]+)MB fetched/);
-                if (mbMatch) {
-                   const currentMB = parseInt(mbMatch[1]);
-                   const totalMB = report.progress > 0 ? Math.round(currentMB / report.progress) : '?';
-                   cleanText = `Downloading Model Weights... ${currentMB}MB / ${totalMB}MB`;
-                } else {
-                   cleanText = 'Downloading Model Weights...';
-                }
-              } else if (rawText.includes('Finish fetching')) {
-                cleanText = 'Download complete. Compiling WebGPU shaders...';
-              } else if (rawText.includes('Loading model')) {
-                cleanText = 'Loading WebAssembly into GPU (takes 15-45s normally)...';
-              } else {
-                cleanText = rawText;
-              }
-            }
-
-            set({ localAiProgress: { text: cleanText, percent } });
-          };
-          
-          await localAi.initEngine(modelId, progressCallback);
-          
-          set({ localAiStatus: 'ready', localAiProgress: { text: 'Hardware compilation successful.', percent: 100 } });
-          
-          setTimeout(() => {
-             set({ localAiProgress: null }); // Clear the UI trace entirely when done
-          }, 4000);
-          return true;
-        } catch (error) {
-          console.error('[AppStore] Local Model Initialization failed:', error);
-          set({ localAiStatus: 'error', localAiProgress: { text: 'Hardware unsupported.', percent: 0 } });
-          toast.error("GPU acceleration failed. Your browser (like Brave/Mobile) likely blocks WebGPU. Try Chrome Desktop!", { icon: '🛑', duration: 6000 });
-          set({ selectedModel: 'llama-3.1-8b-instant' });
-          return false;
-        }
-      },
-
-      cancelLocalModel: (specificModelFallback = null) => {
-        // Drop the engine binding and revert UI to Cloud implicitly
-        set((state) => ({ localAiStatus: 'idle', localAiProgress: null, selectedModel: specificModelFallback || DEFAULT_MODEL }));
-        if (!specificModelFallback) {
-          toast("Local Download Cancelled", { description: "Switched back to Cloud logic.", icon: '🛑' });
-        }
-      },
-
       sendChatMessage: async (text, hiddenContext = null, outputLength = 'Auto') => {
         const { isTyping, chats, activeChatId, selectedModel } = get();
         // Allow sending if there's either text or a hidden context payload (like just an attachment)
@@ -207,20 +136,8 @@ export const useAppStore = create(
           else if (outputLength === 'Concise') finalPrompt += `\n\n[MANDATORY SYSTEM INSTRUCTION: Keep your response relatively brief and concise. Use short paragraphs. Avoid over-explaining edge cases unless explicitly asked for. Omit long introductions and standard AI disclaimers.]`;
           else if (outputLength === 'In-Depth') finalPrompt += `\n\n[MANDATORY SYSTEM INSTRUCTION: Provide a highly detailed, comprehensive, and nuanced response to this query. Break the answer down into structured logic, utilize helpful formatting (like bolding, bullet points, or headers), and explore the topic deeply.]`;
 
-          // Model Routing Logic: Is this destined for the WebGPU or passing out over exactly Cloud edge?
-          let response;
-          const isWebLLM = selectedModel.includes('-MLC'); // All WebLLM models suffix MLC
-          
-          if (isWebLLM) {
-            if (get().localAiStatus !== 'ready') {
-                await get().initLocalModel(selectedModel);
-            }
-            // Re-map internal structures seamlessly
-            const localReply = await localAi.generateChat([...tempMessages.slice(0, -1), { role: 'user', content: finalPrompt }], hiddenContext);
-            response = { reply: localReply, isModelError: false };
-          } else {
-            response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
-          }
+          // Standard secure Cloud routing logic
+          const response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
 
           const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
 
@@ -271,16 +188,7 @@ export const useAppStore = create(
             finalPrompt = "[See Attached Context]";
           }
 
-          let response;
-          const isWebLLM = selectedModel.includes('-MLC');
-          
-          if (isWebLLM) {
-            if (get().localAiStatus !== 'ready') await get().initLocalModel(selectedModel);
-            const localReply = await localAi.generateChat([...tempMessages.slice(0, -1), { role: 'user', content: finalPrompt }], hiddenContext);
-            response = { reply: localReply, isModelError: false };
-          } else {
-            response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
-          }
+          const response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
 
           const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
 

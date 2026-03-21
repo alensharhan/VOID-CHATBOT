@@ -40,37 +40,62 @@ code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
 }
 
-/* Global Markdown Styling tailored for immense readability in AI outputs */
-.prose p {
-  @apply leading-relaxed mb-5 text-[15px] md:text-base text-zinc-800 dark:text-zinc-200;
+/* Hard-kill any phantom background highlights on syntax highlighter lines */
+.not-prose code, 
+.not-prose pre,
+.not-prose span {
+  background-color: transparent !important;
 }
 
-.prose ul,
+/* Global Markdown Styling tailored for immense readability in AI outputs */
+.prose {
+  font-family: Söhne, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.prose p {
+  @apply leading-[1.75] mb-5 text-[16px] text-zinc-800 dark:text-[#d1d5db];
+}
+
+.prose ul {
+  @apply mb-5 pl-6 space-y-1.5 list-disc marker:text-zinc-800 dark:marker:text-[#d1d5db];
+}
+
 .prose ol {
-  @apply mb-5 pl-5 marker:text-zinc-500 space-y-2;
+  @apply mb-5 pl-6 space-y-1.5 list-decimal marker:text-zinc-800 dark:marker:text-[#d1d5db];
 }
 
 .prose li {
-  @apply leading-relaxed text-[15px] md:text-base text-zinc-800 dark:text-zinc-200;
+  @apply leading-[1.75] text-[16px] text-zinc-800 dark:text-[#d1d5db] pl-1.5;
 }
 
 .prose h1,
 .prose h2,
 .prose h3,
 .prose h4 {
-  @apply font-semibold mt-8 mb-4 tracking-tight text-zinc-900 dark:text-zinc-100;
+  @apply font-semibold mt-8 mb-4 text-zinc-900 dark:text-zinc-100 leading-snug tracking-tight;
 }
 
-.prose h1 {
-  @apply text-2xl md:text-3xl;
+.prose h1 { @apply text-[24px]; }
+.prose h2 { @apply text-[20px]; }
+.prose h3 { @apply text-[18px]; }
+
+.prose h1:not(:first-child),
+.prose h2:not(:first-child),
+.prose h3:not(:first-child) {
+  @apply pt-8 border-t border-zinc-200 dark:border-white/10;
 }
 
-.prose h2 {
-  @apply text-xl md:text-2xl;
+.prose hr {
+  @apply my-8 border-t border-zinc-200 dark:border-white/10;
 }
 
-.prose h3 {
-  @apply text-lg md:text-xl;
+/* Hard-kill duplicate rulers if the AI manually generates an <hr> right above an auto-ruled heading */
+.prose hr:has(+ h1),
+.prose hr:has(+ h2),
+.prose hr:has(+ h3),
+.prose hr:has(+ h4),
+.prose hr + hr {
+  display: none !important;
 }
 
 .prose strong {
@@ -106,4 +131,61 @@ code {
     background-color: rgba(59, 130, 246, 0.4);
     color: white;
   }
+}
+
+/* --------------------------------------------------------------------------
+   NATIVE VECTOR PDF PRINT ENGINE
+   Renders flawlessly paginated, exact-color vector PDFs matching the UI. 
+   -------------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+  
+  body {
+    visibility: hidden;
+    height: auto !important;
+  }
+  
+  #void-chat-export {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    overflow: visible !important;
+  }
+
+  /* Eliminate inline vertical padding to mathematically prevent line-height background clipping on multi-line array code blocks */
+  .prose p code,
+  .prose li code {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border: none !important;
+  }
+
+  /* Force the OS to perfectly vectorize the exact dark-mode aesthetic */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   PROGRAMMATIC PDF EXPORT ENGINE FIXES
+   Bypasses the infamous html2canvas inline background wrapping bug natively
+   by rendering inline elements as pure vectorized, bold syntax-highlighted text.
+   -------------------------------------------------------------------------- */
+.pdf-export-mode .prose p,
+.pdf-export-mode .prose li {
+  line-height: 1.75 !important;
+}
+
+.pdf-export-mode .prose p code,
+.pdf-export-mode .prose li code {
+  background-color: transparent !important;
+  color: #38bdf8 !important; /* Electric Blue syntax highlighting */
+  font-weight: 600 !important;
+  padding: 0 !important;
+  border: none !important;
 }

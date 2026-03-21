@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import MermaidBlock from './MermaidBlock';
 import ChartBlock from './ChartBlock';
 
@@ -31,23 +31,24 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 
   if (!inline && match) {
     return (
-      <div className="my-6 overflow-hidden rounded-xl bg-[#1E1E1E] font-sans border border-transparent dark:border-white/5 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-2 bg-[#2D2D2D] select-none border-b border-white/5">
-          <span className="text-[11.5px] font-bold text-zinc-400 dark:text-zinc-400 uppercase tracking-widest">{language}</span>
+      <div className="not-prose my-6 overflow-hidden rounded-xl bg-[#0D0D0D] font-sans border border-black/10 dark:border-white/10 shadow-sm w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-[#212121] select-none text-zinc-400 dark:text-zinc-400">
+          <span className="text-[12px] font-medium font-mono lowercase">{language}</span>
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-400 hover:text-white dark:hover:text-zinc-100 transition-colors"
+            className="flex items-center gap-1.5 text-[12px] font-medium hover:text-zinc-100 transition-colors"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Copied!' : 'Copy code'}
           </button>
         </div>
-        <div className="text-[13px] md:text-[14px] bg-[#1E1E1E] custom-scrollbar overflow-x-auto max-h-[400px]">
+        <div className="text-[14px] bg-[#0D0D0D] custom-scrollbar overflow-x-auto overflow-y-hidden w-full">
           <SyntaxHighlighter
-            style={vscDarkPlus}
+            style={oneDark}
             language={language}
             PreTag="div"
-            customStyle={{ margin: 0, background: 'transparent', padding: '1rem' }}
+            customStyle={{ margin: 0, background: 'transparent', padding: '1.25rem 1rem', lineHeight: '1.6', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+            wrapLongLines={true}
           >
             {String(children).replace(/\n$/, '')}
           </SyntaxHighlighter>
@@ -66,7 +67,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 
 const MessageBubble = ({ message }) => {
   const isUser = message.role === 'user';
-  
+
   const [isCopied, setIsCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -129,9 +130,9 @@ const MessageBubble = ({ message }) => {
       transition={{ duration: 0.2 }}
       className={`flex gap-3 md:gap-5 w-full group ${isUser ? 'flex-row-reverse items-end' : 'flex-row'}`}
     >
-      <div className={`py-3.5 px-5 rounded-[24px] max-w-full md:max-w-[90%] break-words ${isUser
-        ? 'bg-zinc-100 border text-zinc-900 border-zinc-200/60 dark:bg-[#2A2A2A] dark:border-white/5 dark:text-[#D9D9D9] rounded-tr-sm whitespace-pre-wrap text-[15px] leading-relaxed shadow-sm dark:shadow-none'
-        : 'bg-transparent w-full'
+      <div className={`py-3.5 rounded-[24px] break-words ${isUser
+        ? 'px-5 max-w-[85%] md:max-w-[75%] bg-zinc-100 border text-zinc-900 border-zinc-200/60 dark:bg-[#2A2A2A] dark:border-white/5 dark:text-[#D9D9D9] rounded-tr-sm whitespace-pre-wrap text-[15px] leading-relaxed shadow-sm dark:shadow-none'
+        : 'px-1 max-w-full w-full bg-transparent'
         }`}>
         {isUser ? (
           message.content
@@ -170,7 +171,7 @@ const MessageBubble = ({ message }) => {
               >
                 {isSpeaking ? <VolumeX className="w-4 h-4 text-blue-500 animate-pulse" /> : <Volume2 className="w-4 h-4" />}
               </button>
-              
+
               <button
                 onClick={handleCopy}
                 className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-md transition-all"
@@ -178,7 +179,7 @@ const MessageBubble = ({ message }) => {
               >
                 {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
               </button>
-              
+
               <button
                 onClick={() => {
                   import('../store/useAppStore').then(module => {
