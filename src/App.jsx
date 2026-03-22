@@ -96,28 +96,32 @@ function App() {
         />
 
         <Topbar />
+        {/* Scroll area wrapper */}
+        <div className="relative flex-1 min-h-0 w-full">
 
-        <div 
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar"
-        >
-        <div id="void-chat-export" className="w-full max-w-[800px] px-4 pt-8 flex-1 flex flex-col bg-white dark:bg-[#1B1B1B] transition-colors">
-          <div className={`w-full flex-1 flex flex-col ${currentMessages.length > 0 ? 'pb-[180px]' : 'pb-8 md:pb-12'}`}>
-            <ChatWindow
-              messages={currentMessages}
-              isTyping={isTyping}
-            />
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="absolute inset-0 flex flex-col items-center overflow-x-hidden overflow-y-auto custom-scrollbar"
+          >
+          <div id="void-chat-export" className="w-full max-w-[800px] px-4 pt-8 flex-1 flex flex-col bg-white dark:bg-[#1B1B1B] transition-colors">
+            <div className={`w-full flex-1 flex flex-col ${currentMessages.length > 0 ? 'pb-[180px]' : 'pb-8 md:pb-12'}`}>
+              <ChatWindow
+                messages={currentMessages}
+                isTyping={isTyping}
+              />
+            </div>
           </div>
-        </div>
+          </div>
+
         </div>
 
         <div className={`absolute left-0 right-0 md:right-[12px] px-4 pb-2 md:px-6 md:pb-4 pointer-events-none z-10 transition-all duration-300 ${
           currentMessages.length === 0
-            ? 'top-[45%] -translate-y-1/2 bg-transparent flex flex-col justify-center'
+            ? 'top-[52%] -translate-y-1/2 bg-transparent flex flex-col justify-center'
             : 'bottom-0 bg-white dark:bg-[#1B1B1B]'
         }`}>
-          <div className="max-w-[800px] mx-auto w-full pointer-events-auto relative flex flex-col justify-center">
+          <div className="max-w-[720px] mx-auto w-full pointer-events-auto relative flex flex-col justify-center">
             
             {showScrollButton && (
               <button

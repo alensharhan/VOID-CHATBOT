@@ -356,7 +356,9 @@ const Composer = () => {
           </div>
         )}
 
-        <div className="relative flex flex-col gap-2 pl-4 pr-3 py-2.5 md:pl-5 md:pr-4 md:py-3 bg-zinc-100 dark:bg-[#2A2A2A] rounded-3xl transition-colors border border-transparent">
+        <div
+          className="relative flex flex-col rounded-2xl bg-zinc-100 dark:bg-[#2A2A2A] transition-colors border border-transparent"
+        >
 
           <input {...getInputProps()} className="hidden" />
           <input
@@ -398,29 +400,70 @@ const Composer = () => {
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                e.target.style.height = '36px'; // Restoring smooth baseline reset
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 144)}px`;
+                e.target.style.height = '42px';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 222)}px`;
+              }}
+              style={{
+                boxSizing: 'border-box',
+                padding: '10px 16px',
+                fontSize: '16px',
+                lineHeight: '1.4',
+                fontWeight: 400,
+                minHeight: '42px',
+                maxHeight: '222px',
+                color: 'inherit',
               }}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
+              placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none px-1.5 py-1.5 disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap textarea-scrollbar"
+              className="w-full bg-transparent placeholder:text-zinc-500 dark:placeholder:text-zinc-400 resize-none focus:outline-none border-none disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap textarea-scrollbar"
             />
 
-            <div className="flex items-center justify-between w-full mt-1.5">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between w-full px-4 pb-3 mt-1">
+              <div className="flex items-center gap-1.5 relative">
                 <button
                   ref={attachToggleRef}
                   onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
                   disabled={disabled || isProcessingVoice || isParsing}
-                  className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
+                  className={`-ml-2 w-[34px] h-[34px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
                     ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
                     : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
                     } disabled:opacity-50`}
                 >
                   <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
                 </button>
+
+                {/* Attach Popover Menu - anchored to toolbar row */}
+                {isAttachMenuOpen && (
+                  <div
+                    ref={attachMenuRef}
+                    className="absolute left-0 bottom-[calc(100%+8px)] w-[200px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col gap-0.5 font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
+                  >
+                    <button
+                      onClick={() => { fileInputRef.current?.click(); setIsAttachMenuOpen(false); }}
+                      className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                    >
+                      <Paperclip className="w-4 h-4 shrink-0 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
+                      <span>Upload files</span>
+                    </button>
+                    <button
+                      onClick={() => { setIsWebSearchActive(true); setIsAttachMenuOpen(false); textareaRef.current?.focus(); }}
+                      className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                    >
+                      <Globe className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
+                      <span>Web search</span>
+                    </button>
+                    <div className="h-[1px] bg-zinc-100 dark:bg-white/10 w-full my-1" />
+                    <button
+                      onClick={() => { setIsSettingsModalOpen(true); setIsAttachMenuOpen(false); }}
+                      className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                    >
+                      <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors" />
+                      <span>Response Tone</span>
+                    </button>
+                  </div>
+                )}
 
                 {isWebSearchActive && (
                   <button
@@ -436,7 +479,7 @@ const Composer = () => {
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0 pr-1.5">
-                <Tooltip content="Dictate message using Whisper AI">
+                <Tooltip content="Dictate message">
                   <button
                     onClick={toggleListening}
                     disabled={disabled || isProcessingVoice}
@@ -465,41 +508,8 @@ const Composer = () => {
           </div>
         </div>
 
-        {/* Attach Popover Menu */}
-        {isAttachMenuOpen && (
-          <div
-            ref={attachMenuRef}
-            className="absolute left-2 bottom-[calc(100%+8px)] w-[200px] bg-white dark:bg-[#2A2A2A] border border-zinc-200 dark:border-[#383838] rounded-xl shadow-lg dark:shadow-[0_4px_24px_rgba(0,0,0,0.5)] z-50 p-1.5 flex flex-col gap-0.5 font-sans origin-bottom-left animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/[0.03] dark:ring-white/[0.03]"
-          >
-            <button
-              onClick={() => { fileInputRef.current?.click(); setIsAttachMenuOpen(false); }}
-              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
-            >
-              <Paperclip className="w-4 h-4 shrink-0 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-              <span>Upload files</span>
-            </button>
-            <button
-              onClick={() => { setIsWebSearchActive(true); setIsAttachMenuOpen(false); textareaRef.current?.focus(); }}
-              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
-            >
-              <Globe className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
-              <span>Web search</span>
-            </button>
 
-            <div className="h-[1px] bg-zinc-100 dark:bg-white/10 w-full my-1" />
 
-            <button
-              onClick={() => { setIsSettingsModalOpen(true); setIsAttachMenuOpen(false); }}
-              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
-            >
-              <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors" />
-              <span>Response Tone</span>
-            </button>
-          </div>
-        )}
-        <div className="text-center text-[11px] text-zinc-500/80 dark:text-zinc-500 mt-2">
-          VOID can make mistakes. Verify info.
-        </div>
       </div>
 
       {isPDFPreviewOpen && attachedFile?.rawFile && (
