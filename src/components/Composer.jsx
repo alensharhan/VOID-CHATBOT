@@ -138,6 +138,7 @@ const Composer = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     noClick: true,
     noKeyboard: true,
+    noDragEventsBugFix: true,
     accept: {
       'application/pdf': ['.pdf'],
       'text/plain': ['.txt'],
@@ -155,50 +156,66 @@ const Composer = () => {
     },
   });
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
       setIsRecording(false);
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    mediaRecorderRef.current = recognition;
-    
-    let baseText = text;
-
-    recognition.onstart = () => setIsRecording(true);
-
-    recognition.onresult = (event) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
-      }
-      if (finalTranscript) {
-        const newText = baseText + (baseText && !baseText.endsWith(' ') ? ' ' : '') + finalTranscript.trim();
-        setText(newText);
-        baseText = newText;
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '36px';
-          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-        }
-      }
-    };
-
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
-
     try {
-      recognition.start();
-    } catch (e) {
-      setIsRecording(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        setIsProcessingVoice(true);
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64AudioMessage = reader.result.split(',')[1];
+          try {
+            const response = await fetch('/.netlify/functions/transcribe', {
+              method: 'POST',
+              body: JSON.stringify({ audioBase64: base64AudioMessage, fileExt: 'webm' }),
+              headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+            if (data.text) {
+               setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
+               if (textareaRef.current) {
+                 textareaRef.current.style.height = '36px';
+                 textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+               }
+            } else if (data.error) {
+               toast.error(`Transcription failed: ${data.error}`);
+            }
+          } catch (error) {
+            console.error('Transcription error:', error);
+            toast.error('Failed to transcribe audio.');
+          } finally {
+            setIsProcessingVoice(false);
+          }
+        };
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Mic access error:', error);
+      toast.error('Microphone access denied or unavailable.');
     }
   };
 

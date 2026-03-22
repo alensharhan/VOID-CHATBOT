@@ -108,9 +108,9 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed top-[64px] left-[52px] w-[calc(100vw-68px)] sm:w-[360px] sm:absolute sm:top-[100%] sm:left-0 sm:mt-[1.2rem] max-h-[calc(100dvh-150px)] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#202022] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl overflow-hidden pt-1.5 pb-2 sm:pb-0 px-0 z-[100]"
+            className="fixed top-[64px] left-[52px] w-[calc(100vw-68px)] sm:w-[360px] sm:absolute sm:top-[100%] sm:left-0 sm:mt-[1.2rem] max-h-[calc(100dvh-150px)] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#202022] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl overflow-hidden py-1.5 px-0 z-[100]"
           >
-            <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col px-1.5 pb-2">
+            <div className="w-full flex-1 overflow-y-auto scrollbar-none flex flex-col px-1.5 pb-0">
               {groupedModels.map((group, gIdx) => (
                 <div key={group.groupName} className="flex flex-col shrink-0">
                   {gIdx > 0 && <div className="h-px bg-zinc-100 dark:bg-white/[0.04] mx-3 my-2 shrink-0" />}
@@ -168,7 +168,6 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
                   </div>
                 </div>
               ))}
-              <div className="h-6 shrink-0 w-full" />
             </div>
           </motion.div>
         )}
