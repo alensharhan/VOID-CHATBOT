@@ -405,7 +405,7 @@ const Composer = () => {
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
+              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap custom-scrollbar"
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
