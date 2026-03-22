@@ -61,7 +61,7 @@ const Topbar = () => {
     }
   };
   return (
-    <header className="min-h-[56px] py-1.5 shrink-0 border-b border-zinc-200 dark:border-white/[0.04] flex items-center justify-between px-4 bg-white dark:bg-[#1B1B1B]/90 backdrop-blur-xl z-10 w-full transition-colors duration-300 relative">
+    <header className="min-h-[56px] py-1.5 shrink-0 border-b border-zinc-200 dark:border-white/[0.04] flex items-center justify-between px-4 bg-white dark:bg-[#1B1B1B]/90 backdrop-blur-xl z-40 w-full transition-colors duration-300 relative">
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         {/* On mobile devices, the burger menu sits cleanly on the absolute left to invoke the slide-in matrix. */}
 

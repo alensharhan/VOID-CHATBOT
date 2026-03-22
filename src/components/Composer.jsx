@@ -155,70 +155,49 @@ const Composer = () => {
     },
   });
 
-  const toggleListening = async () => {
+  const toggleListening = () => {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const isMp4 = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4');
-      const mimeType = isMp4 ? 'audio/mp4' : 'audio/webm';
-      const fileExt = isMp4 ? 'mp4' : 'webm';
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    mediaRecorderRef.current = recognition;
+    
+    let baseText = text;
+
+    recognition.onstart = () => setIsRecording(true);
+
+    recognition.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
         }
-      };
+      }
+      if (finalTranscript) {
+        const newText = baseText + (baseText && !baseText.endsWith(' ') ? ' ' : '') + finalTranscript.trim();
+        setText(newText);
+        baseText = newText;
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '36px';
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+        }
+      }
+    };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+    recognition.onerror = () => setIsRecording(false);
+    recognition.onend = () => setIsRecording(false);
 
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64data = reader.result.split(',')[1];
-
-          setIsProcessingVoice(true);
-          const toastId = toast.loading("Whisper AI translating audio...");
-
-          try {
-            const res = await fetch('/.netlify/functions/transcribe', {
-              method: 'POST',
-              body: JSON.stringify({ audioBase64: base64data, fileExt })
-            });
-            const data = await res.json();
-
-            if (data.text !== undefined) {
-              if (data.text.trim()) {
-                setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
-              }
-              toast.dismiss(toastId);
-            } else {
-              toast.error(data.error || "Could not decipher speech array.", { id: toastId });
-            }
-          } catch (e) {
-            toast.error("Network failed to reach Whisper AI core.", { id: toastId });
-          } finally {
-            setIsProcessingVoice(false);
-          }
-        };
-
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error(err);
-      toast.error("Hardware Microphone access denied. Please check your browser security settings.");
+    try {
+      recognition.start();
+    } catch (e) {
       setIsRecording(false);
     }
   };
