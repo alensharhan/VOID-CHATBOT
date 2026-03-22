@@ -11,6 +11,7 @@ import MermaidBlock from './MermaidBlock';
 import ChartBlock from './ChartBlock';
 import Tooltip from './Tooltip';
 import { useAppStore } from '../store/useAppStore';
+import { googleTTS } from '../lib/googleTTS';
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
   const [copied, setCopied] = useState(false);
@@ -99,25 +100,20 @@ const MessageBubble = ({ message, isLatestAI }) => {
     return () => {
       // Cleanup: stop talking if component unmounts mid-speech
       if (isSpeaking) {
-        window.speechSynthesis?.cancel();
+        googleTTS.stop();
       }
     };
   }, [isSpeaking]);
 
-  const handleSpeak = () => {
-    if (!('speechSynthesis' in window)) {
-      console.warn("Your browser does not support the Web Speech API.");
-      return;
-    }
-
+  const handleSpeak = async () => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      googleTTS.stop();
       setActiveSpeakingId(null);
       return;
     }
 
-    // Force cancel any globally running audio before starting the new one natively
-    window.speechSynthesis.cancel();
+    // Force cancel any globally running audio before starting the new one
+    googleTTS.stop();
     setActiveSpeakingId(message.id);
 
     // Advanced stripping of markdown, giant code blocks, and repetitive symbols (like ==== or ----)
@@ -130,44 +126,12 @@ const MessageBubble = ({ message, isLatestAI }) => {
       .replace(/\s+/g, ' ') // Collapse multiple spaces
       .trim();
 
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    
-    // Explicitly scan the operating system for zero-delay, premium female voice profiles
-    const voices = window.speechSynthesis.getVoices();
-    const premiumFemaleVoice = voices.find(v => 
-      v.name.includes('Google UK English Female') || 
-      v.name.includes('Samantha') || 
-      v.name.includes('Microsoft Zira') || 
-      v.name.includes('Victoria') ||
-      v.name.includes('Karen') ||
-      (v.name.toLowerCase().includes('female') && v.lang.startsWith('en')) ||
-      (v.name.toLowerCase().includes('woman') && v.lang.startsWith('en'))
-    );
-
-    if (premiumFemaleVoice) {
-      utterance.voice = premiumFemaleVoice;
-    } else {
-      // Fallback: Grab the best available English voice natively if a specific female model isn't installed
-      const englishVoice = voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
-      if (englishVoice) utterance.voice = englishVoice;
+    try {
+      await googleTTS.speak(spokenText);
+    } catch (err) {
+      console.error("Google TTS playback failed:", err);
+      setActiveSpeakingId(null);
     }
-
-    utterance.rate = 1.05;
-    utterance.pitch = 1.15; // Slightly elevated pitch forces default neutral voices to sound significantly more female and natural
-
-    utterance.onend = () => {
-      // Clear ID strictly if this bubble is still the one actively tracked, nullifying race conditions
-      if (useAppStore.getState().activeSpeakingId === message.id) {
-        useAppStore.getState().setActiveSpeakingId(null);
-      }
-    };
-    utterance.onerror = () => {
-      if (useAppStore.getState().activeSpeakingId === message.id) {
-        useAppStore.getState().setActiveSpeakingId(null);
-      }
-    };
-
-    window.speechSynthesis.speak(utterance);
   };
 
   const handleCopy = async () => {

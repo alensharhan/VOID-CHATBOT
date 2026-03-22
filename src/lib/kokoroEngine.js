@@ -64,6 +64,13 @@ export class KokoroEngine {
     this.currentSource = this.audioContext.createBufferSource();
     this.currentSource.buffer = audioBuffer;
     this.currentSource.connect(this.audioContext.destination);
+    
+    this.currentSource.onended = () => {
+      import('../store/useAppStore').then(module => {
+        module.useAppStore.getState().setActiveSpeakingId(null);
+      });
+    };
+    
     this.currentSource.start();
   }
 }

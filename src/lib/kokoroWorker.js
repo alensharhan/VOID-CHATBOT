@@ -8,10 +8,21 @@ self.onmessage = async (e) => {
   if (type === 'init') {
     try {
       const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
-      tts = await KokoroTTS.from_pretrained(model_id, {
-        dtype: "q8", // Aggressively quantized to mathematically load in < 100MB
-        device: "wasm", // WASM fallback guarantees flawless offline execution across all operating systems
-      });
+      
+      try {
+        // Try WebGPU first for instant generation latency
+        tts = await KokoroTTS.from_pretrained(model_id, {
+          dtype: "q8",
+          device: "webgpu",
+        });
+        console.log("Kokoro TTS initialized with WebGPU acceleration.");
+      } catch (gpuErr) {
+        console.warn("WebGPU not available, falling back to WASM for Kokoro TTS.");
+        tts = await KokoroTTS.from_pretrained(model_id, {
+          dtype: "q8", 
+          device: "wasm",
+        });
+      }
       self.postMessage({ status: 'ready' });
     } catch (err) {
       self.postMessage({ status: 'error', error: err.message });

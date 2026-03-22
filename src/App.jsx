@@ -39,7 +39,12 @@ function App() {
 
   useEffect(() => {
     if (currentMessages.length > prevMsgCountRef.current) {
-      setTimeout(() => scrollToBottom('smooth'), 50);
+      const lastMsg = currentMessages[currentMessages.length - 1];
+      // Only auto-scroll when the user sends a message or when a deep research trace initialized.
+      // Do NOT forcefully auto-scroll when a generated AI output arrives, so the reader stays at the top.
+      if (lastMsg && (lastMsg.role === 'user' || lastMsg.isResearching)) {
+        setTimeout(() => scrollToBottom('smooth'), 50);
+      }
     }
     prevMsgCountRef.current = currentMessages.length;
   }, [currentMessages.length]);

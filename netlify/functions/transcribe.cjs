@@ -1,10 +1,11 @@
-import Groq, { toFile } from 'groq-sdk';
+const Groq = require('groq-sdk');
+const { toFile } = require('groq-sdk');
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
