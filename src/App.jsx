@@ -7,13 +7,14 @@ import ChatWindow from './components/ChatWindow';
 import Composer from './components/Composer';
 
 function App() {
-  const { chats, activeChatId, isTyping, loadModels, optimizeStorage, startNewChat } = useAppStore();
+  const { _hasHydrated, chats, activeChatId, isTyping, loadModels, optimizeStorage, startNewChat } = useAppStore();
 
   const activeChat = chats.find(c => c.id === activeChatId);
   const currentMessages = activeChat ? activeChat.messages : [];
 
   // Distinguish between a page refresh and a completely new browser tab/visit
   useEffect(() => {
+    if (!_hasHydrated) return;
     const isReturningSession = sessionStorage.getItem('void_active_session');
     
     if (!isReturningSession) {
@@ -23,19 +24,23 @@ function App() {
     }
     // If 'void_active_session' exists, they just hit F5/Refresh. Do nothing, let Zustand keep the active chat open!
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [_hasHydrated]);
 
   useEffect(() => {
-    loadModels();
-  }, [loadModels]);
+    if (_hasHydrated) loadModels();
+  }, [loadModels, _hasHydrated]);
 
   useEffect(() => {
-    optimizeStorage();
-  }, [activeChatId, optimizeStorage]);
+    if (_hasHydrated) optimizeStorage();
+  }, [activeChatId, optimizeStorage, _hasHydrated]);
 
   useEffect(() => {
     document.documentElement.classList.add('dark');
   }, []);
+
+  if (!_hasHydrated) {
+    return <div className="h-[100dvh] w-full bg-[#1B1B1B]" />;
+  }
 
   return (
     <div className="h-[100dvh] w-full flex overflow-hidden bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9] font-sans transition-colors duration-300 relative">
@@ -46,7 +51,7 @@ function App() {
           position="top-center" 
           toastOptions={{
             duration: 5000,
-            className: "bg-zinc-900 border-none text-white dark:bg-white dark:text-zinc-900 text-[13.5px] font-medium tracking-tight rounded-xl shadow-2xl py-3 px-4"
+            className: "bg-zinc-900 border-none text-white dark:bg-white dark:text-zinc-900 text-[13.5px] font-medium tracking-tight rounded-xl shadow-2xl py-3 px-4 !w-[calc(100vw-32px)] sm:!w-[356px] break-words"
           }} 
         />
 

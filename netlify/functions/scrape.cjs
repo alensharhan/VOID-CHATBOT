@@ -60,15 +60,35 @@ export const handler = async (event) => {
     // Use pure Regex to strip scripts, styles, and HTML tags without needing massive Node dependencies
     let cleanText = "";
     
+    const returnLinks = event.queryStringParameters?.links === 'true';
+
     if (parsedUrl.hostname === 'html.duckduckgo.com') {
-      // Specialized ultra-clean DDG snippet heuristic extractor
-      const snippetRegex = /class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
-      let match;
-      let results = [];
-      while ((match = snippetRegex.exec(html)) !== null) {
-         results.push(match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim());
+      if (returnLinks) {
+        const urlRegex = /class="result__url"[^>]*href="([^"]+)"/gi;
+        let match;
+        let urls = [];
+        while ((match = urlRegex.exec(html)) !== null && urls.length < 25) {
+           let foundUrl = match[1];
+           if (foundUrl.startsWith('//')) foundUrl = 'https:' + foundUrl;
+           if (foundUrl.includes('duckduckgo.com/l/?uddg=')) {
+             try { foundUrl = decodeURIComponent(foundUrl.split('uddg=')[1].split('&')[0]); } catch (e) {}
+           }
+           if (foundUrl && !foundUrl.includes('duckduckgo.com')) urls.push(foundUrl);
+        }
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls })
+        };
+      } else {
+        const snippetRegex = /class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
+        let match;
+        let results = [];
+        while ((match = snippetRegex.exec(html)) !== null) {
+           results.push(match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim());
+        }
+        cleanText = results.join('\n\n--- SEARCH RESULT ---\n\n');
       }
-      cleanText = results.join('\n\n--- SEARCH RESULT ---\n\n');
     }
     
     // Fallback to standard aggressive crawler parsing if not DDG or if DDG parsing yielded empty

@@ -12,15 +12,54 @@ const idbStorage = {
 import { fetchModels, DEFAULT_MODEL } from '../lib/models';
 import { toast } from 'sonner';
 
+const parseGroqWaitTime = (timeStr) => {
+  if (!timeStr) return 60 * 60 * 1000;
+  let ms = 0;
+  const hMatch = timeStr.match(/([0-9.]+)h/);
+  const mMatch = timeStr.match(/([0-9.]+)m/);
+  if (hMatch) ms += parseFloat(hMatch[1]) * 3600 * 1000;
+  if (mMatch) ms += parseFloat(mMatch[1]) * 60 * 1000;
+  return ms || 60 * 1000;
+};
+
+const getSystemDirectives = (length, behavior) => {
+  if (length === 'Auto' && behavior === 'Default') {
+    return `[CRITICAL DIRECTIVE: You are VOID, a calm, serene, and perfectly balanced intelligence. Speak with quiet confidence, absolute clarity, and poise.]\n`;
+  }
+
+  let prompt = `[CRITICAL DIRECTIVE: YOU MUST STRICTLY OBEY THE FOLLOWING TONE AND VERBOSITY CONSTRAINTS]\n\n`;
+  
+  if (length === 'Snapshot') prompt += `VERBOSITY: SNAPSHOT. Your output MUST be restricted to exactly 1-3 highly condensed bullet points. Do not write full paragraphs. Omit lengthy introductions and conclusions.\n`;
+  else if (length === 'Concise') prompt += `VERBOSITY: CONCISE. Your output MUST be brief and to the point. Keep sentences highly condensed, avoiding unnecessary rambling or excessive details.\n`;
+  else if (length === 'In-Depth') prompt += `VERBOSITY: IN-DEPTH. Your output MUST be highly exhaustive and thoroughly detailed. Break down the topic systematically, explore edge cases, and use extensive formatting.\n`;
+
+  if (behavior === 'Professional') prompt += `PERSONA: PROFESSIONAL. You are a high-level corporate strategist. Be extremely decisive, highly authoritative, formal, and strictly business. Zero emojis.\n`;
+  else if (behavior === 'Direct') prompt += `PERSONA: DIRECT. You are an emotionally detached intelligence. Give absolutely zero pleasantries. Output purely logical, binary, and unadorned facts natively. Focus entirely on maximum information density without any filler.\n`;
+  else if (behavior === 'Friendly') prompt += `PERSONA: FRIENDLY. You are deeply warm, empathetic, and highly emotionally intelligent. Use encouraging, conversational language and warm emojis. Be highly engaging.\n`;
+  else prompt += `PERSONA: DEFAULT. You are a calm, serene, and perfectly balanced intelligence. Speak with quiet confidence, absolute clarity, and poise. Be naturally helpful.\n`;
+
+  return prompt;
+};
+
 export const useAppStore = create(
   persist(
     (set, get) => ({
       // State
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+      
+      activeSpeakingId: null,
+      setActiveSpeakingId: (id) => set({ activeSpeakingId: id }),
+      
+      isWebSearchActive: false,
+      setIsWebSearchActive: (state) => set({ isWebSearchActive: state }),
+
       isSidebarOpen: window.innerWidth >= 768,
       chats: [],
       projects: [],
       activeChatId: nanoid(),
       selectedModel: DEFAULT_MODEL,
+      modelCooldowns: {},
       outputLength: 'Auto',
       responseBehavior: 'Default',
       availableModels: [],
@@ -35,6 +74,8 @@ export const useAppStore = create(
       setOutputLength: (length) => set({ outputLength: length }),
       setResponseBehavior: (behavior) => set({ responseBehavior: behavior }),
       
+      setCooldown: (modelId, unlockAt, text) => set(state => ({ modelCooldowns: { ...state.modelCooldowns, [modelId]: { unlockAt, text } } })),
+
       loadModels: async () => {
         set({ isLoadingModels: true });
         const models = await fetchModels();
@@ -134,18 +175,121 @@ export const useAppStore = create(
         set({ isTyping: true });
 
         try {
-          let systemInstructions = "";
-          
-          if (outputLength === 'Snapshot') systemInstructions += `[SYSTEM VERBOSITY: Limit response to exactly 1-2 bullet points. Be razor sharp and hyper-concise. Remove all conversational fluff.]\n`;
-          else if (outputLength === 'Concise') systemInstructions += `[SYSTEM VERBOSITY: Be highly concise. Remove all conversational fluff, introductions, and conclusions. Direct answers only.]\n`;
-          else if (outputLength === 'In-Depth') systemInstructions += `[SYSTEM VERBOSITY: Provide a highly exhaustive, comprehensive response. Explore all edge cases, provide extensive examples, and format with clear headers and structured logic.]\n`;
+          const systemInstructions = getSystemDirectives(outputLength, responseBehavior);
 
-          if (responseBehavior === 'Professional') systemInstructions += `[SYSTEM PERSONA: Maintain an exceptionally formal, objective, and corporate tone. Strictly business. Zero emojis. Neutral vocabulary.]\n`;
-          else if (responseBehavior === 'Friendly') systemInstructions += `[SYSTEM PERSONA: Be deeply empathetic, exceptionally warm, and highly supportive. Use joyful emojis and a highly conversational, uplifting tone.]\n`;
-          else if (responseBehavior === 'Direct') systemInstructions += `[SYSTEM PERSONA: Assume the user is an expert. Zero pleasantries. Zero warnings. Output strictly the requested information. Remove ALL useless text; include ONLY what is strictly necessary.]\n`;
+          const triggerDeepResearch = selectedModel === 'void-deep-research' || get().isWebSearchActive;
+
+          // AGENTIC DEEP RESEARCH BRANCH
+          if (triggerDeepResearch) {
+             const researchId = nanoid();
+             const assistantMsg = { id: researchId, role: 'assistant', content: '', isResearching: true, researchLogs: [], createdAt: Date.now() };
+             set((state) => ({ chats: state.chats.map(c => c.id === activeChatId ? { ...c, messages: [...c.messages, assistantMsg] } : c) }));
+
+             const addLog = (msg) => set(s => ({ chats: s.chats.map(c => c.id === activeChatId ? { ...c, messages: c.messages.map(m => m.id === researchId ? { ...m, researchLogs: [...m.researchLogs, msg] } : m) } : c) }));
+
+             const cleanTextForCheck = (text || "").replace(/[^\w\s]/g, '').trim().toLowerCase();
+             const fluffWords = ['hi', 'hello', 'hey', 'yo', 'sup', 'thanks', 'thank you', 'ok', 'okay', 'cool', 'good', 'awesome', 'yes', 'no', 'yeah', 'nope', 'yep', 'how are you', 'whats up', 'what is up', 'morning', 'evening', 'afternoon', 'bye', 'goodbye', 'test', 'testing'];
+             const isConversational = fluffWords.includes(cleanTextForCheck) || cleanTextForCheck.length <= 2;
+
+             if (isConversational) {
+                 addLog("Conversational greeting detected. Bypassing web search.");
+                 const response = await sendMessage(
+                   text.trim(), 
+                   tempMessages.slice(0, -1), 
+                   selectedModel === 'void-deep-research' ? 'llama-3.3-70b-versatile' : selectedModel, 
+                   hiddenContext,
+                   systemInstructions
+                 );
+                 set((state) => ({ chats: state.chats.map(c => c.id === activeChatId ? { ...c, messages: c.messages.map(m => m.id === researchId ? { ...m, content: response.reply, isResearching: false, researchLogs: [...m.researchLogs, "Responded natively."] } : m) } : c) }));
+                 return; // Branch termination
+             }
+
+             addLog(`Searching the web for "${text.trim() || 'latest information'}"...`);
+             const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(text.trim() || 'latest news')}`;
+             const linkRes = await fetch(`/.netlify/functions/scrape?url=${encodeURIComponent(searchUrl)}&links=true`);
+             let urlsToScrape = [];
+             if (linkRes.ok) {
+                 const linkData = await linkRes.json();
+                 urlsToScrape = linkData.urls || [];
+             }
+
+             if (urlsToScrape.length === 0) {
+                 addLog("No direct search results found. Proceeding with standard knowledge base...");
+             } else {
+                 urlsToScrape = urlsToScrape.slice(0, 15); // Top 15 targets
+                 addLog(`Found ${urlsToScrape.length} results. Reading sources...`);
+                 
+                 let combinedText = "";
+                 const MAX_CONCURRENT = 5;
+                 
+                 for (let i = 0; i < urlsToScrape.length; i += MAX_CONCURRENT) {
+                     const chunk = urlsToScrape.slice(i, i + MAX_CONCURRENT);
+                     
+                     // Format hostnames gracefully (e.g. ['thehindu.com', 'timesofindia.com'])
+                     const hostnames = chunk.map(u => {
+                       try { return new URL(u).hostname.replace('www.', ''); } catch(e) { return 'source'; }
+                     });
+                     
+                     let readLog = `Reading ${hostnames[0]}`;
+                     if (hostnames.length === 2) readLog += ` and ${hostnames[1]}...`;
+                     else if (hostnames.length > 2) readLog += `, ${hostnames[1]}, and ${hostnames.length - 2} others...`;
+                     else readLog += '...';
+                     
+                     addLog(readLog);
+                     
+                     const chunkPromises = chunk.map(url => fetch(`/.netlify/functions/scrape?url=${encodeURIComponent(url)}`).then(r => r.json()).catch(() => null));
+                     const results = await Promise.allSettled(chunkPromises);
+                     results.forEach((res, idx) => {
+                         if (res.status === 'fulfilled' && res.value?.text) {
+                             let cleanScrape = res.value.text;
+                             // Forcefully strip bizarre unicode bugs, unclosed tags, and weird spacing to protect the LLM
+                             cleanScrape = cleanScrape.replace(/\s+/g, ' ').replace(/[^\x20-\x7E\n]/g, '');
+                             combinedText += `\n\n[SOURCE: ${chunk[idx]}]\n${cleanScrape.substring(0, 1000)}`;
+                         }
+                     });
+                 }
+                 addLog(`Synthesizing information...`);
+                 
+                 // Cap absolute maximum context memory injected to prevent repetition penalty collapse and Groq API token hard limits
+                 let finalSafeContext = combinedText.substring(0, 12000);
+                 
+                 hiddenContext = (hiddenContext || "") + `\n\n[DEEP RESEARCH DATA]\nYou are an advanced Deep Research AI evaluating live web extracts. Synthesize the following scraped sources into a clean, structurally perfect, and highly verified conclusion. Ignore garbage text and ads. Cite the explicitly scraped URLs natively during your explanation:\n\n${finalSafeContext}`;
+             }
+
+             let synthesisModel = selectedModel === 'void-deep-research' ? 'llama-3.1-8b-instant' : selectedModel;
+             let response = await sendMessage(
+               text.trim() || "[See Deep Research Context]", 
+               tempMessages.slice(0, -1), 
+               synthesisModel, 
+               hiddenContext,
+               systemInstructions
+             );
+
+             if (response.isRateLimitError || response.isModelError) {
+                 const ms = response.isRateLimitError ? parseGroqWaitTime(response.rateLimitTime) : (24 * 60 * 60 * 1000);
+                 const textLabel = response.isRateLimitError ? (response.rateLimitTime || '1h') : 'OFFLINE';
+                 get().setCooldown('void-deep-research', Date.now() + ms, textLabel);
+                 
+                 const state = get();
+                 const fallbacks = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+                 let nextModelId = DEFAULT_MODEL;
+                 for (const mid of fallbacks) {
+                     const cd = state.modelCooldowns[mid];
+                     if (!cd || cd.unlockAt < Date.now()) { nextModelId = mid; break; }
+                 }
+                 addLog(`Model limited or offline. Auto-selected backup ${nextModelId}...`);
+                 set({ selectedModel: nextModelId });
+                 
+                 synthesisModel = nextModelId === 'void-deep-research' ? 'llama-3.1-8b-instant' : nextModelId;
+                 response = await sendMessage(text.trim() || "[See Deep Research Context]", tempMessages.slice(0, -1), synthesisModel, hiddenContext, systemInstructions);
+             }
+
+             set((state) => ({ chats: state.chats.map(c => c.id === activeChatId ? { ...c, messages: c.messages.map(m => m.id === researchId ? { ...m, content: response.reply, isResearching: false, researchLogs: [...m.researchLogs, "Research complete."] } : m) } : c) }));
+             return; // Branch termination
+          }
 
           // Standard secure Cloud routing logic
-          const response = await sendMessage(
+          let response = await sendMessage(
             text.trim() || "[See Attached Context]", 
             tempMessages.slice(0, -1), 
             selectedModel, 
@@ -153,15 +297,30 @@ export const useAppStore = create(
             systemInstructions
           );
 
+          if (response.isModelError || response.isRateLimitError) {
+             const ms = response.isRateLimitError ? parseGroqWaitTime(response.rateLimitTime) : (24 * 60 * 60 * 1000);
+             const textLabel = response.isRateLimitError ? (response.rateLimitTime || '1h') : 'OFFLINE';
+             get().setCooldown(selectedModel, Date.now() + ms, textLabel);
+             
+             // Auto-recover completely transparently
+             const state = get();
+             const fallbacks = [DEFAULT_MODEL, 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+             let nextModelId = DEFAULT_MODEL;
+             for (const mid of fallbacks) {
+                 if (mid === selectedModel) continue; // Skip the locked one natively
+                 const cd = state.modelCooldowns[mid];
+                 if (!cd || cd.unlockAt < Date.now()) { nextModelId = mid; break; }
+             }
+             
+             set({ selectedModel: nextModelId });
+             response = await sendMessage(text.trim() || "[See Attached Context]", tempMessages.slice(0, -1), nextModelId === 'void-deep-research' ? 'llama-3.1-8b-instant' : nextModelId, hiddenContext, systemInstructions);
+          }
+
           const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
 
           set((state) => ({
             chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: [...chat.messages, assistantMsg] } : chat)
           }));
-
-          if (response.isModelError) {
-            set({ selectedModel: DEFAULT_MODEL });
-          }
         } catch (e) {
           console.error("Chat Pipeline System Error:", e);
           const errorMsg = { id: nanoid(), role: 'assistant', content: `[ENGINE FATAL] ${e.message}`, createdAt: Date.now() };
@@ -174,7 +333,7 @@ export const useAppStore = create(
       },
 
       regenerateMessage: async (messageId) => {
-        const { isTyping, chats, activeChatId, selectedModel } = get();
+        const { isTyping, chats, activeChatId, selectedModel, outputLength, responseBehavior } = get();
         if (isTyping) return;
         
         const activeChat = chats.find(c => c.id === activeChatId);
@@ -202,7 +361,8 @@ export const useAppStore = create(
             finalPrompt = "[See Attached Context]";
           }
 
-          const response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext);
+          const systemInstructions = getSystemDirectives(outputLength, responseBehavior);
+          const response = await sendMessage(finalPrompt, tempMessages.slice(0, -1), selectedModel, hiddenContext, systemInstructions);
 
           const assistantMsg = { id: nanoid(), role: 'assistant', content: response.reply, createdAt: Date.now() };
 
@@ -259,6 +419,9 @@ export const useAppStore = create(
     {
       name: 'void-app-storage',
       storage: createJSONStorage(() => idbStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({
         chats: state.chats,
         activeChatId: state.activeChatId,

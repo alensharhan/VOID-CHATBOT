@@ -28,10 +28,10 @@ exports.handler = async (event, context) => {
         note: "Attempts OpenRouter Free, instantly fails over to Groq."
       },
       {
-        id: "openai/gpt-oss-120b:free",
-        name: "GPT OSS 120B",
-        badge: "Reasoning",
-        note: "Powered natively via OpenRouter Free tier."
+        id: "void-deep-research",
+        name: "VOID Deep PRO",
+        badge: "Agentic",
+        note: "Executes massive multi-site agentic deep research in your browser."
       },
       {
         id: "mistralai/mistral-small-3.1-24b-instruct:free",

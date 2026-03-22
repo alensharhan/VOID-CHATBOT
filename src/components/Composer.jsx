@@ -8,6 +8,7 @@ import { useDropzone } from 'react-dropzone';
 import { useHotkeys } from 'react-hotkeys-hook';
 import PDFPreview from './PDFPreview';
 import { extractTextFromPDF } from '../lib/pdfParser';
+import Tooltip from './Tooltip';
 
 import { useAppStore } from '../store/useAppStore';
 import { toast } from 'sonner';
@@ -16,11 +17,10 @@ import { cn } from '../lib/utils';
 const LENGTH_MODES = ['Auto', 'Snapshot', 'Concise', 'In-Depth'];
 
 const Composer = () => {
-  const { sendChatMessage: onSend, isTyping, selectedModel, outputLength, setOutputLength, responseBehavior, setResponseBehavior } = useAppStore();
+  const { sendChatMessage: onSend, isTyping, selectedModel, outputLength, setOutputLength, responseBehavior, setResponseBehavior, isWebSearchActive, setIsWebSearchActive } = useAppStore();
   const disabled = isTyping;
   const [text, setText] = useState('');
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
-  const [isWebSearchActive, setIsWebSearchActive] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const textareaRef = useRef(null);
   const attachMenuRef = useRef(null);
@@ -45,11 +45,26 @@ const Composer = () => {
   const parseFile = useCallback(async (file) => {
     if (!file) return;
 
-    // Hardened strict whitelist to physically block everything except explicitly permitted PDFs natively.
-    const validExtensions = ['.pdf'];
+    const validExtensions = ['.pdf', '.txt', '.csv', '.md', '.json', '.xlsx', '.xls'];
     const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    
     if (!hasValidExt) {
-      toast.error('Unsupported file format or structural folder detected.', { icon: '🛡️' });
+      toast.error('Unsupported file format.', { icon: '🛡️' });
+      
+      const rejectMsg = { 
+        id: crypto.randomUUID(), 
+        role: 'assistant', 
+        content: `I am currently unable to analyze the file **"${file.name}"**. My core extraction systems are strictly structured for reading text-based documents (PDF, CSV, Excel, TXT, JSON, MD). I cannot process raw images, media, or proprietary binary formats natively yet.`, 
+        createdAt: Date.now() 
+      };
+      
+      useAppStore.setState(state => {
+        const activeChat = state.chats.find(c => c.id === state.activeChatId);
+        if (activeChat) {
+          return { chats: state.chats.map(chat => chat.id === state.activeChatId ? { ...chat, messages: [...chat.messages, rejectMsg] } : chat) };
+        }
+        return { chats: [{ id: state.activeChatId, title: "Blocked Upload", messages: [rejectMsg], projectId: null, createdAt: Date.now() }, ...state.chats] };
+      });
       return;
     }
 
@@ -102,6 +117,19 @@ const Composer = () => {
     } catch (error) {
       console.error('Parse Error:', error);
       toast.error(`Failed to parse ${file.name}.`, { id: toastId });
+      
+      const crashMsg = { 
+        id: crypto.randomUUID(), 
+        role: 'assistant', 
+        content: `I encountered a critical error while attempting to extract data from **"${file.name}"**. The memory pipeline reported: \`${error.message || 'Unknown corruption structure'}\`. Please ensure the document is not fully encrypted, empty, or severely corrupted.`, 
+        createdAt: Date.now() 
+      };
+      
+      useAppStore.setState(state => {
+        const activeChat = state.chats.find(c => c.id === state.activeChatId);
+        if (activeChat) return { chats: state.chats.map(chat => chat.id === state.activeChatId ? { ...chat, messages: [...chat.messages, crashMsg] } : chat) };
+        return { chats: [{ id: state.activeChatId, title: "Corrupted File", messages: [crashMsg], projectId: null, createdAt: Date.now() }, ...state.chats] };
+      });
     } finally {
       setIsParsing(false);
     }
@@ -228,73 +256,23 @@ const Composer = () => {
         let finalText = text.trim();
         let hiddenContext = "";
 
-        // --- LIVE SEARCH AUTONOMOUS ROUTER (FREE SCALING WEB ENGINE) ---
-        // Secretly detect if the user needs realtime facts, news, stocks, or explicitly asks for a search.
-        const getSearchQuery = (q) => {
-          let match = q.match(/^(?:search|google|look up|lookup|find realtime info on|search the web for)\s+(.+)/i);
-          if (match) return match[1].trim();
-          
-          match = q.match(/^(?:who is|who was|who won|what is|what are|what was|what happened in|tell me about|explain the history of|how does|what is the price of)\s+([^?.,!]+)/i);
-          return match ? match[1].trim() : null;
-        };
-
-        let liveSearchQuery = getSearchQuery(finalText);
-        
-        // Manual User Toggle Override - Enforce search regardless of text match
-        if (isWebSearchActive && !attachedFile && !finalText.match(/(https?:\/\/[^\s]+)/)) {
-           liveSearchQuery = finalText;
-        }
-
-        // Exclude direct explicit URLs so the web scraper handles exact links instead natively
-        if (liveSearchQuery && !attachedFile && !finalText.match(/(https?:\/\/[^\s]+)/)) {
-          setIsParsing(true);
-          const toastId = toast.loading(`Browsing live web for: "${liveSearchQuery}"...`);
-          try {
-             // We invisibly query the DuckDuckGo HTML lite server (No-JS fallback) using our existing proxy bridge
-             // This brilliantly unlocks unlimited 100% free web searches natively without Paid APIs!
-             const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(liveSearchQuery)}`;
-             const res = await fetch(`/.netlify/functions/scrape?url=${encodeURIComponent(searchUrl)}`);
-             
-             if (res.ok) {
-               const data = await res.json();
-               if (data.text) {
-                  // The HTML text returns heavy raw scraped DuckDuckGo UI, but the LLM is smart enough to extract the search snippets inside it natively!
-                  hiddenContext += `[SYSTEM LIVE WEB SEARCH DATABANK]\nThe user requested realtime information. You autonomously queried the live internet. Here are the raw scraped search results. Parse them strictly to answer their question using exclusively verified facts. DO NOT quote the HTML garbage. DO NOT tell the user you scraped DuckDuckGo. Be extremely professional:\n\n${data.text.slice(0, 4500)}\n\n`;
-                  toast.success('Live Web Data Acquired!', { id: toastId });
-               } else {
-                  toast.dismiss(toastId);
-               }
-             } else {
-                toast.dismiss(toastId);
-             }
-          } catch (e) {
-             console.log("Live Search gracefully degraded to standard AI memory:", e);
-             toast.dismiss(toastId);
-          } finally {
-             setIsParsing(false);
-          }
-        }
-        // --- END LIVE SEARCH ROUTER ---
-
         // Basic web crawler hook for generic links
         const urlMatch = finalText.match(/(https?:\/\/[^\s]+)/);
 
         if (urlMatch) {
           setIsParsing(true);
-          const toastId = toast.loading(`Scraping website: ${urlMatch[0]}...`);
           try {
             const res = await fetch(`/.netlify/functions/scrape?url=${encodeURIComponent(urlMatch[0])}`);
             if (res.ok) {
               const data = await res.json();
               if (data.text) {
                 hiddenContext += `[Web Scraped Context from ${urlMatch[0]}]\n\n${data.text}\n\n`;
-                toast.success('Website memory loaded!', { id: toastId });
               }
             } else {
-              toast.error('Website aggressively blocked scraping attempts.', { id: toastId });
+              console.warn('Target URL actively blocked connection.');
             }
           } catch (e) {
-            toast.error('Network error bridging to DOM scraper.', { id: toastId });
+            console.warn('Failed to establish network pipeline.');
           } finally {
             setIsParsing(false);
           }
@@ -340,7 +318,6 @@ const Composer = () => {
         }
         setText('');
         setAttachedFile(null);
-        setIsWebSearchActive(false); // Reset to base chatting mode gracefully
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
         }
@@ -374,7 +351,7 @@ const Composer = () => {
             ref={fileInputRef}
             onChange={(e) => { if (e.target.files[0]) parseFile(e.target.files[0]); e.target.value = ''; }}
             className="hidden"
-            accept=".pdf,.txt,.csv,.md,.json,.xlsx,.xls"
+            accept="application/pdf,text/plain,text/csv,text/markdown,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.pdf,.txt,.csv,.md,.json,.xlsx,.xls"
           />
 
           {attachedFile && (
@@ -384,13 +361,14 @@ const Composer = () => {
                 {attachedFile.name}
               </span>
               {attachedFile.rawFile && attachedFile.type === 'application/pdf' && (
-                <button
-                  onClick={() => setIsPDFPreviewOpen(true)}
-                  className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 transition-colors"
-                  title="Preview PDF"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip content="Preview PDF">
+                  <button
+                    onClick={() => setIsPDFPreviewOpen(true)}
+                    className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-400 hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                </Tooltip>
               )}
               <button
                 className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
@@ -414,19 +392,20 @@ const Composer = () => {
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
-              <button
-                onClick={toggleListening}
-                disabled={disabled || isProcessingVoice}
-                className={cn(
-                  "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
-                  isRecording
-                    ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20"
-                    : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
-                )}
-                title="Dictate message using Whisper AI"
-              >
-                <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
-              </button>
+              <Tooltip content="Dictate message using Whisper AI">
+                <button
+                  onClick={toggleListening}
+                  disabled={disabled || isProcessingVoice}
+                  className={cn(
+                    "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
+                    isRecording
+                      ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20"
+                      : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
+                  )}
+                >
+                  <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
+                </button>
+              </Tooltip>
 
               <button
                 onClick={handleSubmit}
@@ -537,9 +516,9 @@ const Composer = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                 transition={{ type: "spring", damping: 25, stiffness: 350 }}
-                className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg rounded-2xl shadow-2xl pointer-events-auto flex flex-col font-sans overflow-hidden"
+                className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-full rounded-2xl shadow-2xl pointer-events-auto flex flex-col font-sans overflow-hidden"
               >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-white/5">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
                   <div className="flex items-center gap-2.5 text-zinc-900 dark:text-zinc-100 font-semibold tracking-wide">
                     <SlidersHorizontal className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
                     <span>Response Configuration</span>
@@ -552,7 +531,7 @@ const Composer = () => {
                   </button>
                 </div>
                 
-                <div className="p-5 flex flex-col gap-6">
+                <div className="p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                   {/* Length Section */}
                   <div>
                     <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">Response Verbosity</h3>
@@ -583,10 +562,10 @@ const Composer = () => {
                     <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">AI Personality</h3>
                     <div className="flex flex-col gap-2">
                       {[
-                        { id: 'Default', title: 'Default Standard', desc: 'Balanced, helpful, and natural formatting.', icon: Cpu },
-                        { id: 'Professional', title: 'Professional & Formal', desc: 'Strictly objective, formal, and business-oriented. No emojis.', icon: Briefcase },
-                        { id: 'Friendly', title: 'Warm & Friendly', desc: 'Highly supportive, conversational, and encouraging mode.', icon: User },
-                        { id: 'Direct', title: 'Ruthlessly Direct', desc: 'Highly technical. Bullet points only. Zero conversational fluff.', icon: ZapIcon }
+                        { id: 'Default', title: 'Default', desc: 'Balanced, natural, and highly adaptive formatting.', icon: Cpu },
+                        { id: 'Professional', title: 'Professional', desc: 'Strictly objective, formal, and business-oriented.', icon: Briefcase },
+                        { id: 'Friendly', title: 'Friendly', desc: 'Warm, highly empathetic, and beautifully expressive.', icon: User },
+                        { id: 'Direct', title: 'Direct', desc: 'Absolute minimalism. Binary, direct, and devoid of fluff.', icon: ZapIcon }
                       ].map((mode) => (
                         <button
                           key={mode.id}
@@ -613,7 +592,7 @@ const Composer = () => {
                   </div>
                 </div>
                 
-                <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end">
+                <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end shrink-0">
                   <button 
                     onClick={() => setIsSettingsModalOpen(false)}
                     className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black rounded-lg text-[13.5px] font-[600] transition-colors shadow-sm"

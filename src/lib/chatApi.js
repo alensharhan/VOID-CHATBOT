@@ -31,8 +31,8 @@ export async function sendMessage(message, chatHistory = [], modelId, hiddenCont
     const data = await response.json();
 
     if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error("RATE_LIMIT");
+      if (response.status === 429 || data.isRateLimit) {
+        throw new Error(`RATE_LIMIT|${data.rateLimitTime || '1h'}`);
       }
       if (data.isModelError) {
         throw new Error("MODEL_UNAVAILABLE");
@@ -51,10 +51,13 @@ export async function sendMessage(message, chatHistory = [], modelId, hiddenCont
   } catch (error) {
     console.warn("Backend Error:", error.message);
     
-    if (error.message === "RATE_LIMIT") {
+    if (error.message.startsWith("RATE_LIMIT")) {
+      const timeStr = error.message.split('|')[1];
       return {
-        reply: "Oops, you're sending messages a bit too fast! Please pause for a moment to let the network cool down before sending your next request.",
-        isRateLimitError: true
+        reply: `Rate limit reached. Please wait ${timeStr} before querying this specific model.`,
+        isRateLimitError: true,
+        rateLimitTime: timeStr,
+        failedModelId: modelId
       };
     }
 

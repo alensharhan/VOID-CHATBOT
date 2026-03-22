@@ -119,7 +119,7 @@ Strict rules:
       model: fallbackModel,
       temperature: 0.7,
       max_tokens: 1024,
-    });
+    }, { timeout: 12000, maxRetries: 1 });
     reply = fallbackCompletion.choices[0]?.message?.content || "I have no optimal response at this time.";
 
     return {
@@ -132,10 +132,19 @@ Strict rules:
 
     // Explicitly identify model-related failures to relay actionable error messages
     const errorStr = String(error.message || "").toLowerCase();
-    const isModelError = errorStr.includes('model') || errorStr.includes('does not exist');
+    const isModelError = errorStr.includes('model') || errorStr.includes('does not exist') || errorStr.includes('timeout') || errorStr.includes('abort');
+    const isRateLimit = error.status === 429 || errorStr.includes('rate limit');
+    
+    let rateLimitTime = null;
+    if (isRateLimit) {
+      const match = errorStr.match(/try again in ([0-9.hms]+)/i);
+      if (match) rateLimitTime = match[1]; // e.g., 40m24.384s
+    }
 
     const replyMsg = isModelError
       ? "Model temporarily unavailable. Switching to default."
+      : isRateLimit
+      ? `Rate limit reached. Please wait ${rateLimitTime || "a moment"} before querying this specific model.`
       : "I am experiencing network friction. Please maintain your focus and try again shortly.";
 
     return {
@@ -144,7 +153,9 @@ Strict rules:
       body: JSON.stringify({
         error: error.message,
         reply: replyMsg,
-        isModelError
+        isModelError,
+        isRateLimit,
+        rateLimitTime
       })
     };
   }

@@ -17,10 +17,17 @@ const ChatWindow = ({ messages, isTyping }) => {
     return <EmptyState />;
   }
 
+  const lastAiIndex = [...messages].reverse().findIndex(m => m.role === 'assistant');
+  const actualLastAiIndex = lastAiIndex !== -1 ? messages.length - 1 - lastAiIndex : -1;
+
   return (
     <div className="flex flex-col gap-6 w-full pb-4">
-      {messages.map((m) => (
-        <MessageBubble key={m.id} message={m} />
+      {messages.map((m, index) => (
+        <MessageBubble 
+          key={m.id} 
+          message={m} 
+          isLatestAI={index === actualLastAiIndex} 
+        />
       ))}
 
       {isTyping && (
