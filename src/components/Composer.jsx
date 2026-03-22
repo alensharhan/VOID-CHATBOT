@@ -392,7 +392,33 @@ const Composer = () => {
           )}
 
           {/* Input Row */}
-          <div className="relative flex items-end w-full">
+          <div className="relative flex items-end gap-1.5 w-full">
+            <div className="flex items-center gap-2 mb-[3px] shrink-0">
+              <button
+                ref={attachToggleRef}
+                onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
+                disabled={disabled || isProcessingVoice || isParsing}
+                className={`w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
+                    ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
+                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
+                  } disabled:opacity-50`}
+              >
+                <Plus className="w-5 h-5" strokeWidth={2.5} />
+              </button>
+
+              {isWebSearchActive && (
+                <button
+                  onClick={() => setIsWebSearchActive(false)}
+                  disabled={disabled || isProcessingVoice || isParsing}
+                  className="group flex flex-row items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12.5px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
+                >
+                  <Globe className="w-[13px] h-[13px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
+                  <span>Search</span>
+                  <X className="w-3 h-3 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
+                </button>
+              )}
+            </div>
+
             <textarea
               ref={textareaRef}
               value={text}
@@ -433,35 +459,6 @@ const Composer = () => {
               >
                 <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
               </button>
-            </div>
-          </div>
-
-          {/* Toolbar Row */}
-          <div className="w-full flex items-center justify-between pt-1 pb-0.5">
-            <div className="flex items-center gap-2">
-              <button
-                ref={attachToggleRef}
-                onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
-                disabled={disabled || isProcessingVoice || isParsing}
-                className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
-                    ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
-                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
-                  } disabled:opacity-50`}
-              >
-                <Plus className="w-4 h-4" strokeWidth={2.5} />
-              </button>
-
-              {isWebSearchActive && (
-                <button
-                  onClick={() => setIsWebSearchActive(false)}
-                  disabled={disabled || isProcessingVoice || isParsing}
-                  className="group flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
-                >
-                  <Globe className="w-[14px] h-[14px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
-                  <span>Search</span>
-                  <X className="w-3.5 h-3.5 ml-0.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
-                </button>
-              )}
             </div>
           </div>
 
