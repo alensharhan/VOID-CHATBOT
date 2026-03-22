@@ -394,7 +394,8 @@ const Composer = () => {
           )}
 
           {/* Stacked Input & Toolbar Area */}
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full relative">
+            
             <textarea
               ref={textareaRef}
               value={text}
@@ -412,6 +413,8 @@ const Composer = () => {
                 minHeight: '42px',
                 maxHeight: '222px',
                 color: 'inherit',
+                maskImage: 'linear-gradient(to bottom, transparent 0, black 10px, black calc(100% - 10px), transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 10px, black calc(100% - 10px), transparent 100%)',
               }}
               onKeyDown={handleKeyDown}
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID")}
