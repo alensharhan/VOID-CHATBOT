@@ -47,17 +47,17 @@ const Composer = () => {
 
     const validExtensions = ['.pdf', '.txt', '.csv', '.md', '.json', '.xlsx', '.xls'];
     const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-    
+
     if (!hasValidExt) {
       toast.error('Unsupported file format.', { icon: '🛡️' });
-      
-      const rejectMsg = { 
-        id: crypto.randomUUID(), 
-        role: 'assistant', 
-        content: `I am currently unable to analyze the file **"${file.name}"**. My core extraction systems are strictly structured for reading text-based documents (PDF, CSV, Excel, TXT, JSON, MD). I cannot process raw images, media, or proprietary binary formats natively yet.`, 
-        createdAt: Date.now() 
+
+      const rejectMsg = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `I am currently unable to analyze the file **"${file.name}"**. My core extraction systems are strictly structured for reading text-based documents (PDF, CSV, Excel, TXT, JSON, MD). I cannot process raw images, media, or proprietary binary formats natively yet.`,
+        createdAt: Date.now()
       };
-      
+
       useAppStore.setState(state => {
         const activeChat = state.chats.find(c => c.id === state.activeChatId);
         if (activeChat) {
@@ -117,14 +117,14 @@ const Composer = () => {
     } catch (error) {
       console.error('Parse Error:', error);
       toast.error(`Failed to parse ${file.name}.`, { id: toastId });
-      
-      const crashMsg = { 
-        id: crypto.randomUUID(), 
-        role: 'assistant', 
-        content: `I encountered a critical error while attempting to extract data from **"${file.name}"**. The memory pipeline reported: \`${error.message || 'Unknown corruption structure'}\`. Please ensure the document is not fully encrypted, empty, or severely corrupted.`, 
-        createdAt: Date.now() 
+
+      const crashMsg = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `I encountered a critical error while attempting to extract data from **"${file.name}"**. The memory pipeline reported: \`${error.message || 'Unknown corruption structure'}\`. Please ensure the document is not fully encrypted, empty, or severely corrupted.`,
+        createdAt: Date.now()
       };
-      
+
       useAppStore.setState(state => {
         const activeChat = state.chats.find(c => c.id === state.activeChatId);
         if (activeChat) return { chats: state.chats.map(chat => chat.id === state.activeChatId ? { ...chat, messages: [...chat.messages, crashMsg] } : chat) };
@@ -192,17 +192,17 @@ const Composer = () => {
             currentInterim += event.results[i][0].transcript;
           }
         }
-        
+
         finalTranscriptState += newFinalChunk;
-        
-        const mergedText = baseText 
-           + (baseText && finalTranscriptState && !baseText.endsWith(' ') ? ' ' : '') 
-           + finalTranscriptState 
-           + (finalTranscriptState && currentInterim && !finalTranscriptState.endsWith(' ') ? ' ' : '') 
-           + currentInterim;
-           
+
+        const mergedText = baseText
+          + (baseText && finalTranscriptState && !baseText.endsWith(' ') ? ' ' : '')
+          + finalTranscriptState
+          + (finalTranscriptState && currentInterim && !finalTranscriptState.endsWith(' ') ? ' ' : '')
+          + currentInterim;
+
         setText(mergedText);
-        
+
         if (textareaRef.current) {
           textareaRef.current.style.height = '36px';
           textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 144)}px`;
@@ -212,7 +212,7 @@ const Composer = () => {
       recognition.onerror = (event) => {
         console.error('Speech recognition error', event.error);
         if (event.error !== 'no-speech') {
-           toast.error(`Microphone error: ${event.error}`);
+          toast.error(`Microphone error: ${event.error}`);
         }
         setIsRecording(false);
       };
@@ -391,30 +391,32 @@ const Composer = () => {
             </div>
           )}
 
-          {/* Input Row */}
-          <div className="relative flex items-end gap-1.5 w-full">
-            <div className="flex items-center gap-2 mb-[3px] shrink-0">
+          {/* ChatGPT Absolute Core Overlay */}
+          <div className="relative w-full flex">
+            
+            {/* Left Button Block (Absolute Bottom-Left with padding offset) */}
+            <div className="absolute left-1.5 bottom-[5px] flex items-center gap-1.5 z-10">
               <button
                 ref={attachToggleRef}
                 onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
                 disabled={disabled || isProcessingVoice || isParsing}
-                className={`w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
+                className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
                     ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
                     : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
                   } disabled:opacity-50`}
               >
-                <Plus className="w-5 h-5" strokeWidth={2.5} />
+                <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
               </button>
 
               {isWebSearchActive && (
                 <button
                   onClick={() => setIsWebSearchActive(false)}
                   disabled={disabled || isProcessingVoice || isParsing}
-                  className="group flex flex-row items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12.5px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
+                  className="group flex flex-row items-center gap-1.5 px-3 py-1.5 h-[34px] rounded-full text-[13px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
                 >
-                  <Globe className="w-[13px] h-[13px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
+                  <Globe className="w-[14px] h-[14px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
                   <span>Search</span>
-                  <X className="w-3 h-3 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
+                  <X className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
                 </button>
               )}
             </div>
@@ -424,17 +426,23 @@ const Composer = () => {
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                e.target.style.height = '36px';
+                e.target.style.height = '44px'; // Base min-height
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 144)}px`;
               }}
               onKeyDown={handleKeyDown}
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none py-1.5 pr-[85px] disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap custom-scrollbar"
+              className={cn(
+                "w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none textarea-scrollbar disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap transition-[padding] duration-200",
+                "pt-[10px] pb-[10px]", // 24 + 10 + 10 = 44px min height
+                isWebSearchActive ? "pl-[120px]" : "pl-[46px]", // Clears left + buttons
+                "pr-[90px]" // Clears right mic/send buttons
+              )}
             />
 
-            <div className="absolute right-0 bottom-1 flex items-center gap-1.5 shrink-0">
+            {/* Right Button Block (Absolute Bottom-Right with padding offset) */}
+            <div className="absolute right-1.5 bottom-[5px] flex items-center gap-1.5 z-10 shrink-0">
               <Tooltip content="Dictate message using Whisper AI">
                 <button
                   onClick={toggleListening}
@@ -453,15 +461,12 @@ const Composer = () => {
               <button
                 onClick={handleSubmit}
                 disabled={!(text.trim() || attachedFile) || disabled || isRecording || isProcessingVoice || isParsing}
-                className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent
-                bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400
-                dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
+                className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
               >
                 <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
               </button>
             </div>
           </div>
-
         </div>
 
         {/* Attach Popover Menu */}
@@ -478,26 +483,26 @@ const Composer = () => {
               <span>Upload files</span>
             </button>
             <button
-               onClick={() => { setIsWebSearchActive(true); setIsAttachMenuOpen(false); textareaRef.current?.focus(); }}
-               className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+              onClick={() => { setIsWebSearchActive(true); setIsAttachMenuOpen(false); textareaRef.current?.focus(); }}
+              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
             >
-               <Globe className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
-               <span>Web search</span>
+              <Globe className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
+              <span>Web search</span>
             </button>
-            
+
             <div className="h-[1px] bg-zinc-100 dark:bg-white/10 w-full my-1" />
-            
+
             <button
-               onClick={() => { setIsSettingsModalOpen(true); setIsAttachMenuOpen(false); }}
-               className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+              onClick={() => { setIsSettingsModalOpen(true); setIsAttachMenuOpen(false); }}
+              className="flex items-center gap-3 px-3 py-2 text-[13.5px] font-[500] rounded-lg transition-colors text-left w-full group text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
             >
-               <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors" />
-               <span>Response Tone</span>
+              <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors" />
+              <span>Response Tone</span>
             </button>
           </div>
         )}
-        <div className="text-center text-xs text-zinc-500 dark:text-zinc-500 tracking-wide mt-1">
-          VOID can make mistakes. Remember to verify critical information.
+        <div className="text-center text-[11px] text-zinc-500/80 dark:text-zinc-500 mt-2">
+          VOID can make mistakes. Verify info.
         </div>
       </div>
 
@@ -518,11 +523,11 @@ const Composer = () => {
             className="fixed inset-0 z-[99]"
           >
             {/* Backdrop */}
-            <div 
+            <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setIsSettingsModalOpen(false)}
             />
-            
+
             {/* Dialog Panel */}
             <div className="absolute inset-0 flex items-center justify-center p-4 py-10 overflow-y-auto pointer-events-none">
               <motion.div
@@ -537,14 +542,14 @@ const Composer = () => {
                     <SlidersHorizontal className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
                     <span>Response Configuration</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsSettingsModalOpen(false)}
                     className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                
+
                 <div className="p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                   {/* Length Section */}
                   <div>
@@ -560,8 +565,8 @@ const Composer = () => {
                           key={mode.id}
                           onClick={() => setOutputLength(mode.id)}
                           className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all ${outputLength === mode.id
-                              ? 'bg-blue-50/50 border-blue-500/30 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400 shadow-sm'
-                              : 'bg-zinc-50 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:bg-white/[0.02] dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
+                            ? 'bg-blue-50/50 border-blue-500/30 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400 shadow-sm'
+                            : 'bg-zinc-50 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:bg-white/[0.02] dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
                             }`}
                         >
                           <mode.icon className="w-4 h-4" />
@@ -585,8 +590,8 @@ const Composer = () => {
                           key={mode.id}
                           onClick={() => setResponseBehavior(mode.id)}
                           className={`flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${responseBehavior === mode.id
-                              ? 'bg-emerald-50/50 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm'
-                              : 'bg-zinc-50 border-transparent hover:bg-zinc-100 dark:bg-white/[0.02] dark:hover:bg-white/5'
+                            ? 'bg-emerald-50/50 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm'
+                            : 'bg-zinc-50 border-transparent hover:bg-zinc-100 dark:bg-white/[0.02] dark:hover:bg-white/5'
                             }`}
                         >
                           <div className={`mt-0.5 p-1.5 rounded-lg ${responseBehavior === mode.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
@@ -605,9 +610,9 @@ const Composer = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end shrink-0">
-                  <button 
+                  <button
                     onClick={() => setIsSettingsModalOpen(false)}
                     className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black rounded-lg text-[13.5px] font-[600] transition-colors shadow-sm"
                   >
