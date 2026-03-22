@@ -392,7 +392,7 @@ const Composer = () => {
           )}
 
           {/* Input Row */}
-          <div className="flex items-end gap-2.5 w-full">
+          <div className="relative flex items-end w-full">
             <textarea
               ref={textareaRef}
               value={text}
@@ -405,10 +405,10 @@ const Composer = () => {
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap custom-scrollbar"
+              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none py-1.5 pr-[85px] disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap custom-scrollbar"
             />
 
-            <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
+            <div className="absolute right-0 bottom-1 flex items-center gap-1.5 shrink-0">
               <Tooltip content="Dictate message using Whisper AI">
                 <button
                   onClick={toggleListening}
