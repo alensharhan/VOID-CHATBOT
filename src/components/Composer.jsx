@@ -9,7 +9,6 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import PDFPreview from './PDFPreview';
 import { extractTextFromPDF } from '../lib/pdfParser';
 import Tooltip from './Tooltip';
-import TextareaAutosize from 'react-textarea-autosize';
 
 import { useAppStore } from '../store/useAppStore';
 import { toast } from 'sonner';
@@ -180,15 +179,34 @@ const Composer = () => {
 
       mediaRecorderRef.current = recognition;
       const baseText = text;
+      let finalTranscriptState = '';
 
       recognition.onresult = (event) => {
-        let currentSessionTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          currentSessionTranscript += event.results[i][0].transcript;
+        let currentInterim = '';
+        let newFinalChunk = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            newFinalChunk += event.results[i][0].transcript;
+          } else {
+            currentInterim += event.results[i][0].transcript;
+          }
         }
         
-        const mergedText = baseText + (baseText && currentSessionTranscript && !baseText.endsWith(' ') ? ' ' : '') + currentSessionTranscript;
+        finalTranscriptState += newFinalChunk;
+        
+        const mergedText = baseText 
+           + (baseText && finalTranscriptState && !baseText.endsWith(' ') ? ' ' : '') 
+           + finalTranscriptState 
+           + (finalTranscriptState && currentInterim && !finalTranscriptState.endsWith(' ') ? ' ' : '') 
+           + currentInterim;
+           
         setText(mergedText);
+        
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '36px';
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 144)}px`;
+        }
       };
 
       recognition.onerror = (event) => {
@@ -313,6 +331,9 @@ const Composer = () => {
         }
         setText('');
         setAttachedFile(null);
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '36px';
+        }
       } catch (error) {
         console.error("Error during message submission:", error);
         toast.error("Failed to send message. Please try again.");
@@ -372,16 +393,19 @@ const Composer = () => {
 
           {/* Input Row */}
           <div className="flex items-end gap-2.5 w-full">
-            <TextareaAutosize
+            <textarea
               ref={textareaRef}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                e.target.style.height = '36px';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 144)}px`;
+              }}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Recording your voice..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
+              placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
-              minRows={1}
-              maxRows={6}
-              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
+              rows={1}
+              className="flex-1 w-full min-w-0 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
