@@ -157,62 +157,58 @@ const Composer = () => {
     },
   });
 
-  const toggleListening = async () => {
+  const toggleListening = () => {
     if (isRecording) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
       return;
     }
 
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Your browser does not support real-time speech recognition. Please use Chrome, Safari, or Edge.", { icon: "🎙️" });
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      mediaRecorderRef.current = recognition;
+      const baseText = text;
+
+      recognition.onresult = (event) => {
+        let currentSessionTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          currentSessionTranscript += event.results[i][0].transcript;
         }
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
-        setIsProcessingVoice(true);
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64AudioMessage = reader.result.split(',')[1];
-          try {
-            const response = await fetch('/.netlify/functions/transcribe', {
-              method: 'POST',
-              body: JSON.stringify({ audioBase64: base64AudioMessage, fileExt: 'webm' }),
-              headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (data.text) {
-               setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
-            } else if (data.error) {
-               toast.error(`Transcription failed: ${data.error}`);
-            }
-          } catch (error) {
-            console.error('Transcription error:', error);
-            toast.error('Failed to transcribe audio.');
-          } finally {
-            setIsProcessingVoice(false);
-          }
-        };
+        const mergedText = baseText + (baseText && currentSessionTranscript && !baseText.endsWith(' ') ? ' ' : '') + currentSessionTranscript;
+        setText(mergedText);
       };
 
-      mediaRecorder.start();
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        if (event.error !== 'no-speech') {
+           toast.error(`Microphone error: ${event.error}`);
+        }
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognition.start();
       setIsRecording(true);
     } catch (error) {
       console.error('Mic access error:', error);
       toast.error('Microphone access denied or unavailable.');
+      setIsRecording(false);
     }
   };
 
@@ -384,7 +380,7 @@ const Composer = () => {
               placeholder={isRecording ? "Recording your voice..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               minRows={1}
-              maxRows={8}
+              maxRows={6}
               className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
             />
 

@@ -9,7 +9,7 @@ const EmptyState = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center"
+        className="text-center select-none pointer-events-none"
       >
         <div className="w-12 h-12 rounded-[18px] bg-white border border-zinc-200 dark:bg-white/[0.03] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-4 shadow-sm dark:shadow-none">
           <Infinity className="w-6 h-6 text-zinc-400 dark:text-zinc-300" />
