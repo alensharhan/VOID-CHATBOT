@@ -1,12 +1,13 @@
-// googleTTS.js - Instant, zero-delay, 100% free Cloud TTS utilizing Google Translate API
-// Chunks text accurately to bypass the 200-character limit and streams back-to-back audio with 0ms gap.
+// browserTTS.js - Instant, zero-delay TTS using the native robust Web Speech API
+// Replaces the old Google Translate hack which suffers from CORS and 403 blocks.
+// Chunks text accurately to bypass browser utterance limits and streams naturally.
 
-export class GoogleTTS {
+export class BrowserTTS {
   constructor() {
     this.audioQueue = [];
-    this.currentAudio = null;
     this.isPlaying = false;
     this.onEndedCache = null;
+    this.currentUtterance = null;
   }
 
   // Split text by natural sentence boundaries so chunking doesn't cut words awkwardly
@@ -39,18 +40,15 @@ export class GoogleTTS {
     this.stop(); // Halt any currently speaking session
     this.onEndedCache = onEnded || null;
     
-    // Chunk the requested text into sub-200 char fragments
+    // Chunk the requested text to avoid 15-second browser synthesis limits
     const chunks = this.chunkText(text);
     if (chunks.length === 0) return;
 
-    // Generate streamable URLs for each chunk instantly
-    this.audioQueue = chunks.map(chunk => {
-      // The `tl=en` specifies english, `client=tw-ob` is the specific Google translate web client 
-      return `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(chunk)}`;
-    });
-
+    this.audioQueue = chunks;
     this.isPlaying = true;
-    this.playNextChunk();
+    
+    // Slight delay to ensure previous stops have fully flushed in the OS audio engine
+    setTimeout(() => this.playNextChunk(), 50);
   }
 
   playNextChunk() {
@@ -59,35 +57,49 @@ export class GoogleTTS {
       return;
     }
 
-    const url = this.audioQueue.shift();
-    this.currentAudio = new Audio(url);
-    this.currentAudio.playbackRate = 1.05; // Slightly faster for natural speaking cadence
+    const chunk = this.audioQueue.shift();
     
-    this.currentAudio.onended = () => {
+    if (!('speechSynthesis' in window)) {
+      console.error("Speech Synthesis not supported in this browser.");
+      this.finish();
+      return;
+    }
+
+    this.currentUtterance = new SpeechSynthesisUtterance(chunk);
+    
+    // Try to find a good natural voice if available
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      // Prioritize natural sounding English voices, fallback to default English
+      const voice = voices.find(v => v.name.includes('Natural') && v.lang.startsWith('en')) 
+                 || voices.find(v => v.lang === 'en-US')
+                 || voices[0];
+      this.currentUtterance.voice = voice;
+    }
+
+    this.currentUtterance.rate = 1.05; // Slightly faster for natural speaking cadence
+    
+    this.currentUtterance.onend = () => {
+      this.currentUtterance = null;
       this.playNextChunk();
     };
     
-    this.currentAudio.onerror = (e) => {
-      console.error("Google TTS Segment Error:", e);
+    this.currentUtterance.onerror = (e) => {
+      console.error("Speech Synthesis Segment Error:", e);
+      this.currentUtterance = null;
       // Skip chunk and keep reading instead of catastrophically failing
       this.playNextChunk();
     };
 
-    // Browsers block autoplay unless triggered by a user interaction.
-    // Since this is triggered by the 'Read Aloud' button click, the audio will instantly play.
-    this.currentAudio.play().catch(e => {
-      console.error("Audio playback blocked by browser:", e);
-      this.finish();
-    });
+    window.speechSynthesis.speak(this.currentUtterance);
   }
 
   stop() {
     this.isPlaying = false;
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
-      this.currentAudio = null;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
+    this.currentUtterance = null;
     this.audioQueue = [];
     this.finish();
   }
@@ -107,4 +119,6 @@ export class GoogleTTS {
   }
 }
 
-export const googleTTS = new GoogleTTS();
+// Keep the same export name to prevent breaking other imports like MessageBubble.jsx
+export const googleTTS = new BrowserTTS();
+

@@ -83,7 +83,7 @@ function App() {
   }
 
   return (
-    <div className="h-[100dvh] w-full flex overflow-hidden bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9] font-sans transition-colors duration-300 relative">
+    <div className="h-[100dvh] w-full flex fixed inset-0 overflow-hidden bg-white text-zinc-900 dark:bg-[#1B1B1B] dark:text-[#D9D9D9] font-sans transition-colors duration-300">
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-w-0 h-full bg-white dark:bg-[#1B1B1B] transition-colors duration-300 relative">

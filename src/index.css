@@ -29,6 +29,8 @@
     @apply bg-zinc-300 hover:bg-zinc-400 dark:bg-zinc-600 dark:hover:bg-zinc-500 transition-colors;
   }
 
+}
+
   .textarea-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
@@ -50,7 +52,6 @@
   .textarea-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.35);
   }
-}
 
 /* Composer top fade gradient */
 .composer-fade {

@@ -402,7 +402,9 @@ const Composer = () => {
               onChange={(e) => {
                 setText(e.target.value);
                 e.target.style.height = '42px';
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 222)}px`;
+                const scrollHeight = e.target.scrollHeight;
+                e.target.style.overflowY = scrollHeight >= 222 ? 'auto' : 'hidden';
+                e.target.style.height = `${Math.min(scrollHeight, 222)}px`;
               }}
               style={{
                 boxSizing: 'border-box',
@@ -413,6 +415,7 @@ const Composer = () => {
                 minHeight: '42px',
                 maxHeight: '222px',
                 color: 'inherit',
+                overflowY: 'hidden', // Defaults to hidden, dynamically handled via onChange
                 maskImage: 'linear-gradient(to bottom, transparent 0, black 10px, black calc(100% - 10px), transparent 100%)',
                 WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 10px, black calc(100% - 10px), transparent 100%)',
               }}
@@ -420,7 +423,7 @@ const Composer = () => {
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="w-full bg-transparent placeholder:text-zinc-500 dark:placeholder:text-zinc-400 resize-none focus:outline-none border-none disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap textarea-scrollbar"
+              className="w-full bg-transparent placeholder:text-zinc-500 dark:placeholder:text-zinc-400 resize-none focus:outline-none border-none disabled:opacity-50 break-words whitespace-pre-wrap textarea-scrollbar"
             />
 
             <div className="flex items-center justify-between w-full px-4 pb-3 mt-1">
