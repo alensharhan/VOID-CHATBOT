@@ -14,7 +14,7 @@ const enrichModelData = (modelId, modelName) => {
     let titleStr = 'VOID Flash';
     if (id.includes('mistral')) titleStr = 'VOID Surge';
     else if (id.includes('gemma')) titleStr = 'VOID Spark';
-    
+
     return { group: 'Fast', title: titleStr, description: 'Instant responses for lighter tasks.', badge: null, Icon: Zap };
   }
   if (id.includes('deepseek') || id.includes('120b') || id.includes('reasoning') || id.includes('gpt-oss') || id.includes('void-deep-research')) {
@@ -39,7 +39,7 @@ const enrichModelData = (modelId, modelName) => {
 const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   const { modelCooldowns } = useAppStore();
 
   useEffect(() => {
@@ -78,11 +78,10 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 group ${
-          isOpen 
-            ? 'bg-zinc-100 dark:bg-white/10' 
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 group ${isOpen
+            ? 'bg-zinc-100 dark:bg-white/10'
             : 'active:bg-zinc-100 dark:active:bg-white/5 sm:hover:bg-zinc-100 sm:dark:hover:bg-white/5'
-        }`}
+          }`}
       >
         {activeParams && (
           <ActiveIcon className="w-[18px] h-[18px] text-zinc-600 dark:text-zinc-300" />
@@ -109,7 +108,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute top-[100%] mt-2 left-0 w-[calc(100vw-4.8rem)] max-w-[320px] sm:max-w-[360px] sm:w-[360px] max-h-[70vh] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 px-0 z-[100]"
+            className="fixed top-[64px] left-[52px] w-[calc(100vw-68px)] sm:w-[360px] sm:absolute sm:top-[100%] sm:left-0 sm:mt-[1.2rem] max-h-[65dvh] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#202022] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl overflow-hidden py-1.5 px-0 z-[100]"
           >
             <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col px-1.5 pb-2">
               {groupedModels.map((group, gIdx) => (
@@ -119,27 +118,27 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
                     {group.groupName}
                   </div>
 
-                    <div className="flex flex-col gap-1 w-full pl-0">
-                      {group.models.map(m => {
-                        const MIcon = m.Icon;
-                        const isSelected = selectedModel === m.id;
-                        
-                        const cd = modelCooldowns[m.id];
-                        const isLocked = cd && cd.unlockAt > Date.now();
+                  <div className="flex flex-col gap-1 w-full pl-0">
+                    {group.models.map(m => {
+                      const MIcon = m.Icon;
+                      const isSelected = selectedModel === m.id;
 
-                        return (
-                          <button
-                            key={m.id}
-                            disabled={isLocked}
-                            onClick={() => {
-                                if (!isLocked) {
-                                  onModelChange(m.id);
-                                  setIsOpen(false);
-                                }
-                            }}
+                      const cd = modelCooldowns[m.id];
+                      const isLocked = cd && cd.unlockAt > Date.now();
+
+                      return (
+                        <button
+                          key={m.id}
+                          disabled={isLocked}
+                          onClick={() => {
+                            if (!isLocked) {
+                              onModelChange(m.id);
+                              setIsOpen(false);
+                            }
+                          }}
                           className={`flex items-start gap-3 w-full p-2.5 rounded-xl transition-all text-left ${isLocked ? 'cursor-not-allowed opacity-40 grayscale' : 'group/item shrink-0'} ${isSelected && !isLocked
-                              ? 'bg-blue-50/50 dark:bg-blue-500/10 cursor-pointer'
-                              : !isLocked ? 'hover:bg-zinc-50 dark:hover:bg-white/5 cursor-pointer' : ''
+                            ? 'bg-blue-50/50 dark:bg-blue-500/10 cursor-pointer'
+                            : !isLocked ? 'hover:bg-zinc-50 dark:hover:bg-white/5 cursor-pointer' : ''
                             }`}
                         >
                           <MIcon className={`w-[18px] h-[18px] mt-0.5 shrink-0 ${isSelected && !isLocked ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400 group-hover/item:text-zinc-900 dark:group-hover/item:text-zinc-200'}`} />

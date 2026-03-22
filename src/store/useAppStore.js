@@ -273,12 +273,18 @@ export const useAppStore = create(
                  get().setCooldown('void-deep-research', Date.now() + ms, textLabel);
                  
                  const state = get();
-                 const fallbacks = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
-                 let nextModelId = DEFAULT_MODEL;
+                 const fallbacks = ['meta-llama/llama-3.3-70b-instruct:free', 'llama-3.1-8b-instant', 'gemma2-9b-it', 'mixtral-8x7b-32768'];
+                 let nextModelId = null;
                  for (const mid of fallbacks) {
+                     if (mid === selectedModel) continue;
                      const cd = state.modelCooldowns[mid];
                      if (!cd || cd.unlockAt < Date.now()) { nextModelId = mid; break; }
                  }
+                 if (!nextModelId) {
+                     nextModelId = state.availableModels.find(m => m.id !== selectedModel && (!state.modelCooldowns[m.id] || state.modelCooldowns[m.id].unlockAt < Date.now()))?.id;
+                 }
+                 if (!nextModelId) nextModelId = DEFAULT_MODEL;
+                 
                  addLog(`Model limited or offline. Auto-selected backup ${nextModelId}...`);
                  set({ selectedModel: nextModelId });
                  
@@ -306,13 +312,17 @@ export const useAppStore = create(
              
              // Auto-recover completely transparently
              const state = get();
-             const fallbacks = [DEFAULT_MODEL, 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
-             let nextModelId = DEFAULT_MODEL;
+             const fallbacks = ['meta-llama/llama-3.3-70b-instruct:free', 'llama-3.1-8b-instant', 'gemma2-9b-it', 'mixtral-8x7b-32768'];
+             let nextModelId = null;
              for (const mid of fallbacks) {
                  if (mid === selectedModel) continue; // Skip the locked one natively
                  const cd = state.modelCooldowns[mid];
                  if (!cd || cd.unlockAt < Date.now()) { nextModelId = mid; break; }
              }
+             if (!nextModelId) {
+                 nextModelId = state.availableModels.find(m => m.id !== selectedModel && (!state.modelCooldowns[m.id] || state.modelCooldowns[m.id].unlockAt < Date.now()))?.id;
+             }
+             if (!nextModelId) nextModelId = DEFAULT_MODEL;
              
              set({ selectedModel: nextModelId });
              response = await sendMessage(text.trim() || "[See Attached Context]", tempMessages.slice(0, -1), nextModelId === 'void-deep-research' ? 'llama-3.1-8b-instant' : nextModelId, hiddenContext, systemInstructions);
