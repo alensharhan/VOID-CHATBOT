@@ -10,7 +10,9 @@ export const handler = async (event) => {
   }
 
   try {
-    const { audioBase64 } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const audioBase64 = body.audioBase64;
+    const fileExt = body.fileExt || 'webm';
     
     if (!audioBase64) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing audio base64 data' }) };
@@ -20,7 +22,9 @@ export const handler = async (event) => {
     const buffer = Buffer.from(audioBase64, 'base64');
     
     // Cast the raw memory buffer into a virtual file object to satisfy the Whisper endpoint
-    const file = await toFile(buffer, 'audio.webm', { type: 'audio/webm' });
+    const mimeMap = { 'mp4': 'audio/mp4', 'm4a': 'audio/m4a', 'webm': 'audio/webm' };
+    const contentType = mimeMap[fileExt] || 'audio/webm';
+    const file = await toFile(buffer, `audio.${fileExt}`, { type: contentType });
 
     console.log("Transcribing via whisper-large-v3-turbo...");
 

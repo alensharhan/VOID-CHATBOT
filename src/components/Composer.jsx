@@ -164,7 +164,11 @@ const Composer = () => {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const isMp4 = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4');
+      const mimeType = isMp4 ? 'audio/mp4' : 'audio/webm';
+      const fileExt = isMp4 ? 'mp4' : 'webm';
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -175,7 +179,7 @@ const Composer = () => {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
@@ -188,12 +192,14 @@ const Composer = () => {
           try {
             const res = await fetch('/.netlify/functions/transcribe', {
               method: 'POST',
-              body: JSON.stringify({ audioBase64: base64data })
+              body: JSON.stringify({ audioBase64: base64data, fileExt })
             });
             const data = await res.json();
 
-            if (data.text) {
-              setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
+            if (data.text !== undefined) {
+              if (data.text.trim()) {
+                setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
+              }
               toast.dismiss(toastId);
             } else {
               toast.error(data.error || "Could not decipher speech array.", { id: toastId });

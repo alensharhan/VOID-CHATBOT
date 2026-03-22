@@ -22,7 +22,7 @@ const Tooltip = ({ content, children, position = 'bottom' }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className={`pointer-events-none absolute z-50 px-2.5 py-1.5 text-[11.5px] font-medium tracking-wide text-white bg-zinc-900 border border-zinc-800 dark:bg-[#2A2A2A] dark:text-[#E0E0E0] dark:border-white/10 rounded-lg whitespace-nowrap ${
+            className={`hidden md:block pointer-events-none absolute z-50 px-2.5 py-1.5 text-[11.5px] font-medium tracking-wide text-white bg-zinc-900 border border-zinc-800 dark:bg-[#2A2A2A] dark:text-[#E0E0E0] dark:border-white/10 rounded-lg whitespace-nowrap ${
               position === 'top' ? 'bottom-[calc(100%+6px)]' : 'top-[calc(100%+6px)]'
             }`}
           >
