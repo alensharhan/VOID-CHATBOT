@@ -6,12 +6,7 @@ import MessageBubble from './MessageBubble';
 const ChatWindow = ({ messages, isTyping }) => {
   const endRef = useRef(null);
 
-  // Auto-scroll when new messages arrive.
-  useEffect(() => {
-    if (endRef.current) {
-      endRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isTyping]);
+  // Auto-scroll removed to let App.jsx handle smart scrolling
 
   if (messages.length === 0) {
     return <EmptyState />;

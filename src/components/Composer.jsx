@@ -319,7 +319,7 @@ const Composer = () => {
         setText('');
         setAttachedFile(null);
         if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
+          textareaRef.current.style.height = '36px';
         }
       } catch (error) {
         console.error("Error during message submission:", error);
@@ -383,12 +383,16 @@ const Composer = () => {
             <textarea
               ref={textareaRef}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                e.target.style.height = '36px';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+              }}
               onKeyDown={handleKeyDown}
               placeholder={isRecording ? "Recording your voice..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 h-[36px] min-h-[36px] max-h-[36px] overflow-y-auto"
+              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 min-h-[36px] max-h-[200px] overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">

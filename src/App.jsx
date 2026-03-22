@@ -1,16 +1,50 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Toaster, toast } from 'sonner';
 import { useAppStore } from './store/useAppStore';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ChatWindow from './components/ChatWindow';
 import Composer from './components/Composer';
+import { ArrowDown } from 'lucide-react';
 
 function App() {
   const { _hasHydrated, chats, activeChatId, isTyping, loadModels, optimizeStorage, startNewChat } = useAppStore();
 
   const activeChat = chats.find(c => c.id === activeChatId);
   const currentMessages = activeChat ? activeChat.messages : [];
+
+  const scrollContainerRef = useRef(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const prevMsgCountRef = useRef(currentMessages.length);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+    setShowScrollButton(!isNearBottom);
+  };
+
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior
+      });
+    }
+  };
+
+  useEffect(() => {
+    setTimeout(() => scrollToBottom('auto'), 50);
+  }, [activeChatId]);
+
+  useEffect(() => {
+    if (currentMessages.length > prevMsgCountRef.current) {
+      setTimeout(() => scrollToBottom('smooth'), 50);
+    }
+    prevMsgCountRef.current = currentMessages.length;
+  }, [currentMessages.length]);
+
+
 
   // Distinguish between a page refresh and a completely new browser tab/visit
   useEffect(() => {
@@ -57,7 +91,11 @@ function App() {
 
         <Topbar />
 
-        <div className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar">
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 w-full flex flex-col items-center relative z-0 overflow-x-hidden overflow-y-auto custom-scrollbar"
+        >
         <div id="void-chat-export" className="w-full max-w-[800px] px-4 pt-8 flex-1 flex flex-col bg-white dark:bg-[#1B1B1B] transition-colors">
           <div className={`w-full flex-1 flex flex-col ${currentMessages.length > 0 ? 'pb-[180px]' : 'pb-8 md:pb-12'}`}>
             <ChatWindow
@@ -69,7 +107,17 @@ function App() {
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 md:right-[12px] px-4 pb-2 md:px-6 md:pb-4 bg-white dark:bg-[#1B1B1B] pointer-events-none z-10 transition-colors duration-300">
-          <div className="max-w-[800px] mx-auto w-full pointer-events-auto">
+          <div className="max-w-[800px] mx-auto w-full pointer-events-auto relative">
+            
+            {showScrollButton && (
+              <button
+                onClick={() => scrollToBottom('smooth')}
+                className="absolute -top-14 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 rounded-full shadow-md text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors z-50 animate-in fade-in zoom-in duration-200"
+              >
+                <ArrowDown className="w-4 h-4" strokeWidth={2.5} />
+              </button>
+            )}
+
             <Composer />
           </div>
         </div>

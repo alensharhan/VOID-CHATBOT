@@ -28,12 +28,6 @@ exports.handler = async (event, context) => {
         note: "Attempts OpenRouter Free, instantly fails over to Groq."
       },
       {
-        id: "void-deep-research",
-        name: "VOID Deep PRO",
-        badge: "Agentic",
-        note: "Executes massive multi-site agentic deep research in your browser."
-      },
-      {
         id: "mistralai/mistral-small-3.1-24b-instruct:free",
         name: "Mistral 24B",
         badge: "Fast",
