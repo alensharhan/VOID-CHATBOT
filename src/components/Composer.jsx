@@ -157,81 +157,66 @@ const Composer = () => {
     },
   });
 
-  const toggleListening = () => {
+  const toggleListening = async () => {
     if (isRecording) {
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
-      }
+      mediaRecorderRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Your browser does not support real-time speech recognition. Please use Chrome, Safari, or Edge.", { icon: "🎙️" });
-      return;
-    }
-
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-      mediaRecorderRef.current = recognition;
-      const baseText = text;
-      let finalTranscriptState = '';
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
 
-      recognition.onresult = (event) => {
-        let currentInterim = '';
-        let newFinalChunk = '';
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            newFinalChunk += event.results[i][0].transcript;
-          } else {
-            currentInterim += event.results[i][0].transcript;
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64data = reader.result.split(',')[1];
+
+          setIsProcessingVoice(true);
+
+          try {
+            const res = await fetch('/.netlify/functions/transcribe', {
+              method: 'POST',
+              body: JSON.stringify({ audioBase64: base64data })
+            });
+            const data = await res.json();
+
+            if (data.text) {
+              setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
+              if (textareaRef.current) {
+                textareaRef.current.style.height = '42px';
+                const scrollHeight = textareaRef.current.scrollHeight;
+                textareaRef.current.style.overflowY = scrollHeight >= 188 ? 'auto' : 'hidden';
+                textareaRef.current.style.height = `${Math.min(scrollHeight, 188)}px`;
+              }
+            }
+          } catch (e) {
+            console.error("Whisper transcription failed:", e);
+          } finally {
+            setIsProcessingVoice(false);
           }
-        }
+        };
 
-        // Fix for Android's dreaded Web Speech duplication bug while preserving PC incremental logic
-        if (event.resultIndex === 0) {
-          finalTranscriptState = newFinalChunk;
-        } else {
-          finalTranscriptState += newFinalChunk;
-        }
-
-        const mergedText = baseText
-          + (baseText && finalTranscriptState && !baseText.endsWith(' ') ? ' ' : '')
-          + finalTranscriptState
-          + (finalTranscriptState && currentInterim && !finalTranscriptState.endsWith(' ') ? ' ' : '')
-          + currentInterim;
-
-        setText(mergedText);
-
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '36px';
-          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 144)}px`;
-        }
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        if (event.error !== 'no-speech') {
-          toast.error(`Microphone error: ${event.error}`);
-        }
-        setIsRecording(false);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-      };
-
-      recognition.start();
+      mediaRecorder.start();
       setIsRecording(true);
-    } catch (error) {
-      console.error('Mic access error:', error);
-      toast.error('Microphone access denied or unavailable.');
+    } catch (err) {
+      console.error(err);
+      toast.error("Microphone access denied. Please check your browser settings.");
       setIsRecording(false);
     }
   };
