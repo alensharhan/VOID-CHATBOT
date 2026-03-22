@@ -403,8 +403,8 @@ const Composer = () => {
                 setText(e.target.value);
                 e.target.style.height = '42px';
                 const scrollHeight = e.target.scrollHeight;
-                e.target.style.overflowY = scrollHeight >= 222 ? 'auto' : 'hidden';
-                e.target.style.height = `${Math.min(scrollHeight, 222)}px`;
+                e.target.style.overflowY = scrollHeight >= 188 ? 'auto' : 'hidden';
+                e.target.style.height = `${Math.min(scrollHeight, 188)}px`;
               }}
               style={{
                 boxSizing: 'border-box',
@@ -413,7 +413,7 @@ const Composer = () => {
                 lineHeight: '1.4',
                 fontWeight: 400,
                 minHeight: '42px',
-                maxHeight: '222px',
+                maxHeight: '188px',
                 color: 'inherit',
                 overflowY: 'hidden', // Defaults to hidden, dynamically handled via onChange
                 maskImage: 'linear-gradient(to bottom, transparent 0, black 10px, black calc(100% - 10px), transparent 100%)',
