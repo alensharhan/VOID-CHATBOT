@@ -194,7 +194,12 @@ const Composer = () => {
           }
         }
 
-        finalTranscriptState += newFinalChunk;
+        // Fix for Android's dreaded Web Speech duplication bug while preserving PC incremental logic
+        if (event.resultIndex === 0) {
+          finalTranscriptState = newFinalChunk;
+        } else {
+          finalTranscriptState += newFinalChunk;
+        }
 
         const mergedText = baseText
           + (baseText && finalTranscriptState && !baseText.endsWith(' ') ? ' ' : '')

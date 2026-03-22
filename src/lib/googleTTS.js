@@ -47,8 +47,8 @@ export class BrowserTTS {
     this.audioQueue = chunks;
     this.isPlaying = true;
     
-    // Slight delay to ensure previous stops have fully flushed in the OS audio engine
-    setTimeout(() => this.playNextChunk(), 50);
+    // Must be called synchronously within the user click event loop or mobile browsers will block it!
+    this.playNextChunk();
   }
 
   playNextChunk() {
@@ -101,7 +101,7 @@ export class BrowserTTS {
     }
     this.currentUtterance = null;
     this.audioQueue = [];
-    this.finish();
+    // DO NOT call this.finish() here, it causes fatal race conditions with React state on new speech synthesis!
   }
   
   finish() {
