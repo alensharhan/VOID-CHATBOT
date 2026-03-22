@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, AlignLeft, ChevronDown, Check, Mic, Plus, Paperclip, X, FileText, Upload, Eye, Cpu, Globe, Zap, FileJson, BookOpen, Sparkles, SlidersHorizontal, User, Briefcase, ZapIcon } from 'lucide-react';
 import Papa from 'papaparse';
@@ -525,117 +526,120 @@ const Composer = () => {
         />
       )}
 
-      {/* Settings Modal */}
-      <AnimatePresence>
-        {isSettingsModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99]"
-          >
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setIsSettingsModalOpen(false)}
-            />
+      {/* Settings Modal - Portaled to avoid CSS transform trapping from App.jsx parents */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isSettingsModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999]"
+            >
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setIsSettingsModalOpen(false)}
+              />
 
-            {/* Dialog Panel */}
-            <div className="absolute inset-0 flex items-center justify-center p-4 py-10 overflow-y-auto pointer-events-none">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ type: "spring", damping: 25, stiffness: 350 }}
-                className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-full rounded-2xl shadow-2xl pointer-events-auto flex flex-col font-sans overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
-                  <div className="flex items-center gap-2.5 text-zinc-900 dark:text-zinc-100 font-semibold tracking-wide">
-                    <SlidersHorizontal className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
-                    <span>Response Configuration</span>
+              {/* Dialog Panel */}
+              <div className="absolute inset-0 flex items-center justify-center p-4 py-10 overflow-y-auto pointer-events-none">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                  className="bg-white dark:bg-[#1C1C1E] border border-zinc-200 dark:border-white/10 w-full max-w-lg max-h-full rounded-2xl shadow-2xl pointer-events-auto flex flex-col font-sans overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
+                    <div className="flex items-center gap-2.5 text-zinc-900 dark:text-zinc-100 font-semibold tracking-wide">
+                      <SlidersHorizontal className="w-5 h-5 text-emerald-500" strokeWidth={2.5} />
+                      <span>Response Configuration</span>
+                    </div>
+                    <button
+                      onClick={() => setIsSettingsModalOpen(false)}
+                      className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setIsSettingsModalOpen(false)}
-                    className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
 
-                <div className="p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
-                  {/* Length Section */}
-                  <div>
-                    <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">Response Verbosity</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[
-                        { id: 'Auto', label: 'Auto', icon: Sparkles },
-                        { id: 'Snapshot', label: 'Snapshot', icon: Zap },
-                        { id: 'Concise', label: 'Concise', icon: FileJson },
-                        { id: 'In-Depth', label: 'In-Depth', icon: BookOpen }
-                      ].map((mode) => (
-                        <button
-                          key={mode.id}
-                          onClick={() => setOutputLength(mode.id)}
-                          className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all ${outputLength === mode.id
-                            ? 'bg-blue-50/50 border-blue-500/30 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400 shadow-sm'
-                            : 'bg-zinc-50 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:bg-white/[0.02] dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
-                            }`}
-                        >
-                          <mode.icon className="w-4 h-4" />
-                          <span className="text-[11px] font-[600] tracking-wide">{mode.label}</span>
-                        </button>
-                      ))}
+                  <div className="p-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+                    {/* Length Section */}
+                    <div>
+                      <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">Response Verbosity</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: 'Auto', label: 'Auto', icon: Sparkles },
+                          { id: 'Snapshot', label: 'Snapshot', icon: Zap },
+                          { id: 'Concise', label: 'Concise', icon: FileJson },
+                          { id: 'In-Depth', label: 'In-Depth', icon: BookOpen }
+                        ].map((mode) => (
+                          <button
+                            key={mode.id}
+                            onClick={() => setOutputLength(mode.id)}
+                            className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all ${outputLength === mode.id
+                              ? 'bg-blue-50/50 border-blue-500/30 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400 shadow-sm'
+                              : 'bg-zinc-50 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:bg-white/[0.02] dark:hover:bg-white/5 dark:text-zinc-400 dark:hover:text-zinc-300'
+                              }`}
+                          >
+                            <mode.icon className="w-4 h-4" />
+                            <span className="text-[11px] font-[600] tracking-wide">{mode.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Behavior Section */}
+                    <div>
+                      <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">AI Personality</h3>
+                      <div className="flex flex-col gap-2">
+                        {[
+                          { id: 'Default', title: 'Default', desc: 'Balanced, natural, and highly adaptive formatting.', icon: Cpu },
+                          { id: 'Professional', title: 'Professional', desc: 'Strictly objective, formal, and business-oriented.', icon: Briefcase },
+                          { id: 'Friendly', title: 'Friendly', desc: 'Warm, highly empathetic, and beautifully expressive.', icon: User },
+                          { id: 'Direct', title: 'Direct', desc: 'Absolute minimalism. Binary, direct, and devoid of fluff.', icon: ZapIcon }
+                        ].map((mode) => (
+                          <button
+                            key={mode.id}
+                            onClick={() => setResponseBehavior(mode.id)}
+                            className={`flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${responseBehavior === mode.id
+                              ? 'bg-emerald-50/50 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm'
+                              : 'bg-zinc-50 border-transparent hover:bg-zinc-100 dark:bg-white/[0.02] dark:hover:bg-white/5'
+                              }`}
+                          >
+                            <div className={`mt-0.5 p-1.5 rounded-lg ${responseBehavior === mode.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
+                              <mode.icon className="w-4 h-4" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <div className={`text-[14px] font-[600] ${responseBehavior === mode.id ? 'text-emerald-800 dark:text-emerald-300' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                                {mode.title}
+                              </div>
+                              <div className={`text-[12px] leading-relaxed mt-0.5 ${responseBehavior === mode.id ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-zinc-500 dark:text-zinc-500'}`}>
+                                {mode.desc}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Behavior Section */}
-                  <div>
-                    <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 tracking-widest uppercase mb-3">AI Personality</h3>
-                    <div className="flex flex-col gap-2">
-                      {[
-                        { id: 'Default', title: 'Default', desc: 'Balanced, natural, and highly adaptive formatting.', icon: Cpu },
-                        { id: 'Professional', title: 'Professional', desc: 'Strictly objective, formal, and business-oriented.', icon: Briefcase },
-                        { id: 'Friendly', title: 'Friendly', desc: 'Warm, highly empathetic, and beautifully expressive.', icon: User },
-                        { id: 'Direct', title: 'Direct', desc: 'Absolute minimalism. Binary, direct, and devoid of fluff.', icon: ZapIcon }
-                      ].map((mode) => (
-                        <button
-                          key={mode.id}
-                          onClick={() => setResponseBehavior(mode.id)}
-                          className={`flex items-start gap-4 p-3.5 rounded-xl border transition-all text-left ${responseBehavior === mode.id
-                            ? 'bg-emerald-50/50 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/30 shadow-sm'
-                            : 'bg-zinc-50 border-transparent hover:bg-zinc-100 dark:bg-white/[0.02] dark:hover:bg-white/5'
-                            }`}
-                        >
-                          <div className={`mt-0.5 p-1.5 rounded-lg ${responseBehavior === mode.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-zinc-200 text-zinc-500 dark:bg-white/10 dark:text-zinc-400'}`}>
-                            <mode.icon className="w-4 h-4" strokeWidth={2.5} />
-                          </div>
-                          <div>
-                            <div className={`text-[14px] font-[600] ${responseBehavior === mode.id ? 'text-emerald-800 dark:text-emerald-300' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                              {mode.title}
-                            </div>
-                            <div className={`text-[12px] leading-relaxed mt-0.5 ${responseBehavior === mode.id ? 'text-emerald-600/80 dark:text-emerald-400/80' : 'text-zinc-500 dark:text-zinc-500'}`}>
-                              {mode.desc}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end shrink-0">
+                    <button
+                      onClick={() => setIsSettingsModalOpen(false)}
+                      className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black rounded-lg text-[13.5px] font-[600] transition-colors shadow-sm"
+                    >
+                      Done
+                    </button>
                   </div>
-                </div>
-
-                <div className="px-5 py-4 border-t border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-black/20 flex justify-end shrink-0">
-                  <button
-                    onClick={() => setIsSettingsModalOpen(false)}
-                    className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black rounded-lg text-[13.5px] font-[600] transition-colors shadow-sm"
-                  >
-                    Done
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 };
