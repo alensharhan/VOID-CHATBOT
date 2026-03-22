@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ChatWindow from './components/ChatWindow';
 import Composer from './components/Composer';
+import EmptyState from './components/EmptyState';
 import { ArrowDown } from 'lucide-react';
 
 function App() {
@@ -111,8 +112,12 @@ function App() {
         </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 md:right-[12px] px-4 pb-2 md:px-6 md:pb-4 bg-white dark:bg-[#1B1B1B] pointer-events-none z-10 transition-colors duration-300">
-          <div className="max-w-[800px] mx-auto w-full pointer-events-auto relative">
+        <div className={`absolute left-0 right-0 md:right-[12px] px-4 pb-2 md:px-6 md:pb-4 pointer-events-none z-10 transition-all duration-300 ${
+          currentMessages.length === 0
+            ? 'top-[45%] -translate-y-1/2 bg-transparent flex flex-col justify-center'
+            : 'bottom-0 bg-white dark:bg-[#1B1B1B]'
+        }`}>
+          <div className="max-w-[800px] mx-auto w-full pointer-events-auto relative flex flex-col justify-center">
             
             {showScrollButton && (
               <button
@@ -123,6 +128,7 @@ function App() {
               </button>
             )}
 
+            {currentMessages.length === 0 && <EmptyState />}
             <Composer />
           </div>
         </div>

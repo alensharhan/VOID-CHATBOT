@@ -391,80 +391,76 @@ const Composer = () => {
             </div>
           )}
 
-          {/* ChatGPT Absolute Core Overlay */}
-          <div className="relative w-full flex">
-            
-            {/* Left Button Block (Absolute Bottom-Left with padding offset) */}
-            <div className="absolute left-1.5 bottom-[5px] flex items-center gap-1.5 z-10">
-              <button
-                ref={attachToggleRef}
-                onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
-                disabled={disabled || isProcessingVoice || isParsing}
-                className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
-                    ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
-                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
-                  } disabled:opacity-50`}
-              >
-                <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
-              </button>
-
-              {isWebSearchActive && (
-                <button
-                  onClick={() => setIsWebSearchActive(false)}
-                  disabled={disabled || isProcessingVoice || isParsing}
-                  className="group flex flex-row items-center gap-1.5 px-3 py-1.5 h-[34px] rounded-full text-[13px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
-                >
-                  <Globe className="w-[14px] h-[14px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
-                  <span>Search</span>
-                  <X className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
-                </button>
-              )}
-            </div>
-
+          {/* Stacked Input & Toolbar Area */}
+          <div className="flex flex-col w-full">
             <textarea
               ref={textareaRef}
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                e.target.style.height = '44px'; // Base min-height
+                e.target.style.height = '36px'; // Restoring smooth baseline reset
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 144)}px`;
               }}
               onKeyDown={handleKeyDown}
               placeholder={isRecording ? "Listening..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
               rows={1}
-              className={cn(
-                "w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none textarea-scrollbar disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap transition-[padding] duration-200",
-                "pt-[10px] pb-[10px]", // 24 + 10 + 10 = 44px min height
-                isWebSearchActive ? "pl-[120px]" : "pl-[46px]", // Clears left + buttons
-                "pr-[90px]" // Clears right mic/send buttons
-              )}
+              className="w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[16px] leading-[24px] resize-none focus:outline-none px-1.5 py-1.5 disabled:opacity-50 overflow-y-auto break-words whitespace-pre-wrap textarea-scrollbar"
             />
 
-            {/* Right Button Block (Absolute Bottom-Right with padding offset) */}
-            <div className="absolute right-1.5 bottom-[5px] flex items-center gap-1.5 z-10 shrink-0">
-              <Tooltip content="Dictate message using Whisper AI">
+            <div className="flex items-center justify-between w-full mt-1.5">
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={toggleListening}
-                  disabled={disabled || isProcessingVoice}
-                  className={cn(
-                    "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
-                    isRecording
-                      ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20"
-                      : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
-                  )}
+                  ref={attachToggleRef}
+                  onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
+                  disabled={disabled || isProcessingVoice || isParsing}
+                  className={`w-[34px] h-[34px] flex items-center justify-center rounded-full transition-colors ${isAttachMenuOpen
+                    ? 'bg-zinc-200 text-zinc-900 dark:bg-white/10 dark:text-white'
+                    : 'bg-transparent text-zinc-500 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-300'
+                    } disabled:opacity-50`}
                 >
-                  <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
+                  <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
                 </button>
-              </Tooltip>
 
-              <button
-                onClick={handleSubmit}
-                disabled={!(text.trim() || attachedFile) || disabled || isRecording || isProcessingVoice || isParsing}
-                className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
-              >
-                <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
-              </button>
+                {isWebSearchActive && (
+                  <button
+                    onClick={() => setIsWebSearchActive(false)}
+                    disabled={disabled || isProcessingVoice || isParsing}
+                    className="group flex flex-row items-center gap-1.5 px-3 py-1.5 h-[34px] rounded-full text-[13px] font-[600] tracking-wide transition-all duration-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#20293A] dark:text-[#60A5FA] dark:hover:bg-[#28344A] disabled:opacity-50 border border-blue-200/50 dark:border-blue-500/10 shadow-sm hover:shadow"
+                  >
+                    <Globe className="w-[14px] h-[14px] animate-in spin-in-180 duration-500" strokeWidth={2.5} />
+                    <span>Search</span>
+                    <X className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" strokeWidth={3} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 pr-1.5">
+                <Tooltip content="Dictate message using Whisper AI">
+                  <button
+                    onClick={toggleListening}
+                    disabled={disabled || isProcessingVoice}
+                    className={cn(
+                      "w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border",
+                      isRecording
+                        ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse hover:bg-red-500/20"
+                        : "bg-zinc-100/80 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:border-transparent dark:hover:bg-white/10 dark:hover:text-zinc-300"
+                    )}
+                  >
+                    <Mic className="w-[17px] h-[17px]" strokeWidth={isRecording ? 2.5 : 2} />
+                  </button>
+                </Tooltip>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={!(text.trim() || attachedFile) || disabled || isRecording || isProcessingVoice || isParsing}
+                  className="w-[34px] h-[34px] rounded-full transition-all flex items-center justify-center border border-transparent
+                bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400
+                dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-white/10 dark:disabled:text-white/40"
+                >
+                  <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
           </div>
         </div>

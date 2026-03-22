@@ -8,10 +8,6 @@ const ChatWindow = ({ messages, isTyping }) => {
 
   // Auto-scroll removed to let App.jsx handle smart scrolling
 
-  if (messages.length === 0) {
-    return <EmptyState />;
-  }
-
   const lastAiIndex = [...messages].reverse().findIndex(m => m.role === 'assistant');
   const actualLastAiIndex = lastAiIndex !== -1 ? messages.length - 1 - lastAiIndex : -1;
 
