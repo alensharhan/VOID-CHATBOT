@@ -49,15 +49,32 @@ exports.handler = async (event) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(parsedUrl.toString(), {
+    let fetchUrl = parsedUrl.toString();
+    let fetchOptions = {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
       }
-    });
+    };
+
+    // Unbannable Anti-Bot Router
+    const agents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0'
+    ];
+    fetchOptions.headers['User-Agent'] = agents[Math.floor(Math.random() * agents.length)];
+
+    if (parsedUrl.hostname.includes('duckduckgo.com')) {
+      fetchUrl = 'https://lite.duckduckgo.com/lite/';
+      fetchOptions.method = 'POST';
+      fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      const queryParam = parsedUrl.searchParams.get('q') || 'latest news';
+      fetchOptions.body = `q=${encodeURIComponent(queryParam)}`;
+    }
+
+    const response = await fetch(fetchUrl, fetchOptions);
     
     clearTimeout(timeoutId);
 
@@ -72,30 +89,40 @@ exports.handler = async (event) => {
     
     const returnLinks = event.queryStringParameters?.links === 'true';
 
-    if (parsedUrl.hostname === 'html.duckduckgo.com') {
+    if (parsedUrl.hostname.includes('duckduckgo.com')) {
       if (returnLinks) {
-        const urlRegex = /class="result__url"[^>]*href="([^"]+)"/gi;
+        // Find links organically from the Lite HTML payload wrapper
+        const urlRegex = /class="result-url"[^>]*href="([^"]+)"/gi;
         let match;
         let urls = [];
+        
         while ((match = urlRegex.exec(html)) !== null && urls.length < 25) {
            let foundUrl = match[1];
            if (foundUrl.startsWith('//')) foundUrl = 'https:' + foundUrl;
-           if (foundUrl.includes('duckduckgo.com/l/?uddg=')) {
-             try { foundUrl = decodeURIComponent(foundUrl.split('uddg=')[1].split('&')[0]); } catch (e) {}
-           }
-           if (foundUrl && !foundUrl.includes('duckduckgo.com')) urls.push(foundUrl);
+           if (!foundUrl.includes('duckduckgo.com')) urls.push(foundUrl);
         }
+        
+        // Anti-fragile failsafe against raw generic hrefs if the class result-url changes
+        if (urls.length === 0) {
+           const genericLinks = html.match(/href=\"(http[^\"]+)\"/gi) || [];
+           urls = genericLinks
+             .map(l => l.replace('href="', '').replace('"', '').replace('HREF="', ''))
+             .filter(u => !u.includes('duckduckgo.com') && !u.includes('yahoo.com'));
+        }
+
+        urls = [...new Set(urls)].slice(0, 15); // Discard duplicates natively
+
         return {
           statusCode: 200,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urls })
         };
       } else {
-        const snippetRegex = /class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi;
+        const snippetRegex = /class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi;
         let match;
         let results = [];
         while ((match = snippetRegex.exec(html)) !== null) {
-           results.push(match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim());
+           results.push(match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
         }
         cleanText = results.join('\n\n--- SEARCH RESULT ---\n\n');
       }

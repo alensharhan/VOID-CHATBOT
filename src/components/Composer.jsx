@@ -9,6 +9,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import PDFPreview from './PDFPreview';
 import { extractTextFromPDF } from '../lib/pdfParser';
 import Tooltip from './Tooltip';
+import TextareaAutosize from 'react-textarea-autosize';
 
 import { useAppStore } from '../store/useAppStore';
 import { toast } from 'sonner';
@@ -195,10 +196,6 @@ const Composer = () => {
             const data = await response.json();
             if (data.text) {
                setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + data.text.trim());
-               if (textareaRef.current) {
-                 textareaRef.current.style.height = '36px';
-                 textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
-               }
             } else if (data.error) {
                toast.error(`Transcription failed: ${data.error}`);
             }
@@ -320,9 +317,6 @@ const Composer = () => {
         }
         setText('');
         setAttachedFile(null);
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '36px';
-        }
       } catch (error) {
         console.error("Error during message submission:", error);
         toast.error("Failed to send message. Please try again.");
@@ -382,19 +376,16 @@ const Composer = () => {
 
           {/* Input Row */}
           <div className="flex items-end gap-2.5 w-full">
-            <textarea
+            <TextareaAutosize
               ref={textareaRef}
               value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                e.target.style.height = '36px';
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
-              }}
+              onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={isRecording ? "Recording your voice..." : (isWebSearchActive ? "Search the web..." : "Message VOID...")}
               disabled={disabled || isProcessingVoice}
-              rows={1}
-              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 min-h-[36px] max-h-[200px] overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
+              minRows={1}
+              maxRows={8}
+              className="flex-1 w-full bg-transparent text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 text-[15px] leading-[24px] resize-none focus:outline-none py-1.5 custom-scrollbar disabled:opacity-50 overflow-y-auto max-md:[scrollbar-width:none] max-md:[-ms-overflow-style:none] max-md:[&::-webkit-scrollbar]:hidden"
             />
 
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
