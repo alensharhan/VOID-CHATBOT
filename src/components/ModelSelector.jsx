@@ -78,7 +78,11 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50 group"
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 group ${
+          isOpen 
+            ? 'bg-zinc-100 dark:bg-white/10' 
+            : 'active:bg-zinc-100 dark:active:bg-white/5 sm:hover:bg-zinc-100 sm:dark:hover:bg-white/5'
+        }`}
       >
         {activeParams && (
           <ActiveIcon className="w-[18px] h-[18px] text-zinc-600 dark:text-zinc-300" />
@@ -105,7 +109,7 @@ const ModelSelector = ({ selectedModel, onModelChange, availableModels, disabled
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="fixed top-[64px] left-3 right-3 sm:absolute sm:top-[100%] sm:left-0 sm:right-auto sm:mt-[1.2rem] sm:w-[360px] max-h-[calc(100dvh-120px)] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 px-0"
+            className="absolute top-[100%] mt-2 left-0 w-[calc(100vw-4.8rem)] max-w-[320px] sm:max-w-[360px] sm:w-[360px] max-h-[70vh] sm:max-h-[60vh] flex flex-col bg-white dark:bg-[#1a1a1c] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] dark:shadow-2xl backdrop-blur-xl dark:bg-[#1a1a1c]/95 overflow-hidden py-1.5 px-0 z-[100]"
           >
             <div className="w-full flex-1 overflow-y-auto custom-scrollbar flex flex-col px-1.5 pb-2">
               {groupedModels.map((group, gIdx) => (

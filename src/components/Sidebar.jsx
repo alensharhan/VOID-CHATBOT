@@ -89,24 +89,20 @@ const Sidebar = () => {
   const searchResults = chats.filter(c => (c.title || "New Conversation").toLowerCase().includes(searchLower));
 
   const groupChatsByDate = (chatsToGroup) => {
-    const groups = { today: [], yesterday: [], previous7Days: [], previous30Days: [], older: [] };
-    const now = new Date();
+    const groups = { today: [], yesterday: [], previous: [] };
     
     chatsToGroup.forEach(chat => {
-      const timestamp = parseInt(chat.id, 10);
-      if (isNaN(timestamp)) {
-        groups.older.push(chat);
+      const timestamp = chat.updatedAt || chat.createdAt || parseInt(chat.id, 10);
+      if (!timestamp || isNaN(timestamp)) {
+        groups.previous.push(chat);
         return;
       }
       
       const date = new Date(timestamp);
-      const diff = differenceInDays(now, date);
       
       if (isToday(date)) groups.today.push(chat);
       else if (isYesterday(date)) groups.yesterday.push(chat);
-      else if (diff <= 7) groups.previous7Days.push(chat);
-      else if (diff <= 30) groups.previous30Days.push(chat);
-      else groups.older.push(chat);
+      else groups.previous.push(chat);
     });
     return groups;
   };
@@ -308,9 +304,7 @@ const Sidebar = () => {
                       <>
                         {renderGroup("TODAY", grouped.today)}
                         {renderGroup("YESTERDAY", grouped.yesterday)}
-                        {renderGroup("PREVIOUS 7 DAYS", grouped.previous7Days)}
-                        {renderGroup("PREVIOUS 30 DAYS", grouped.previous30Days)}
-                        {renderGroup("", grouped.older)}
+                        {renderGroup("PREVIOUS DAYS", grouped.previous)}
                       </>
                     );
                   })()}

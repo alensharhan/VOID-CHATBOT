@@ -165,10 +165,12 @@ export const useAppStore = create(
 
         set((state) => {
           if (isNewChat) {
-            return { chats: [{ id: activeChatId, title: newTitle, messages: tempMessages, projectId: null, createdAt: Date.now() }, ...state.chats] };
+            return { chats: [{ id: activeChatId, title: newTitle, messages: tempMessages, projectId: null, createdAt: Date.now(), updatedAt: Date.now() }, ...state.chats] };
           }
+          const currentChat = state.chats.find(c => c.id === activeChatId);
+          const otherChats = state.chats.filter(c => c.id !== activeChatId);
           return {
-            chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: tempMessages } : chat)
+            chats: currentChat ? [{ ...currentChat, messages: tempMessages, updatedAt: Date.now() }, ...otherChats] : state.chats
           };
         });
 
@@ -348,10 +350,14 @@ export const useAppStore = create(
         // Truncate the chat branch exactly at the failed AI message
         const tempMessages = activeChat.messages.slice(0, msgIndex);
         
-        set((state) => ({
-          chats: state.chats.map(chat => chat.id === activeChatId ? { ...chat, messages: tempMessages } : chat),
-          isTyping: true
-        }));
+        set((state) => {
+          const currentChat = state.chats.find(c => c.id === activeChatId);
+          const otherChats = state.chats.filter(c => c.id !== activeChatId);
+          return {
+            chats: currentChat ? [{ ...currentChat, messages: tempMessages, updatedAt: Date.now() }, ...otherChats] : state.chats,
+            isTyping: true
+          };
+        });
 
         try {
           let finalPrompt = prevMsg.content;
